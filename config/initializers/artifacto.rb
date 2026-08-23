@@ -12,7 +12,9 @@ Rails.application.configure do
     end
 
   config.x.app_origin = ENV.fetch("APP_ORIGIN", default_origin)
-  config.x.content_scheme = Rails.env.production? ? "https" : "http"
+  # Env override so a TLS-less staging box (sslip.io, plain HTTP) can
+  # still build correct artifact URLs. Production must leave this at https.
+  config.x.content_scheme = ENV.fetch("CONTENT_SCHEME") { Rails.env.production? ? "https" : "http" }
   config.x.content_port = Rails.env.production? ? nil : ENV.fetch("PORT", 3000)
 
   # Keys come from ENV so the repo stays safe to open-source. The development
