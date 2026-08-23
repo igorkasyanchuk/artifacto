@@ -1,0 +1,9 @@
+<div class="wrap">
+  <h1>Admin</h1>
+
+  <h2>Reported (<%= @reported.size %>)</h2>
+  <%= render "table", artifacts: @reported %>
+
+  <h2>Recent</h2>
+  <%= render "table", artifacts: @recent %>
+</div>

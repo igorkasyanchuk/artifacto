@@ -1,0 +1,33 @@
+<% content_for :title, @artifact.title.presence || "Artifact" %>
+<div class="viewer" data-controller="wrapper">
+  <div class="bar">
+    <strong><%= @artifact.title.presence || "Untitled artifact" %></strong>
+    <span class="note">expires in <%= pluralize(@artifact.ttl_days, "day") %></span>
+    <% if @artifact.allow_network? %>
+      <span class="warn">can make network requests</span>
+    <% end %>
+    <span class="spacer"></span>
+    <button data-action="wrapper#copy">Copy link</button>
+    <%= form_with url: report_artifact_path(@artifact.slug), method: :post, class: "check" do |form| %>
+      <%= form.select :reason, AbuseReport::REASONS.map { |r| [ r.capitalize, r ] } %>
+      <%= form.submit "Report" %>
+    <% end %>
+  </div>
+
+  <% if flash[:notice] || flash[:alert] %>
+    <div class="flash"><%= flash[:notice] || flash[:alert] %></div>
+  <% end %>
+
+  <% if @needs_pin %>
+    <div class="center">
+      <h1>This artifact is locked</h1>
+      <%= form_with url: unlock_artifact_path(@artifact.slug), method: :post do |form| %>
+        <%= form.password_field :pin, placeholder: "PIN", autocomplete: "off" %>
+        <p><%= form.submit "Unlock", class: "primary" %></p>
+      <% end %>
+    </div>
+  <% else %>
+    <iframe class="frame" src="<%= @iframe_src %>" data-wrapper-target="frame"
+            title="<%= @artifact.title.presence || "Artifact" %>"></iframe>
+  <% end %>
+</div>

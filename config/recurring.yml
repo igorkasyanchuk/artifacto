@@ -1,0 +1,5 @@
+production:
+  purge_expired_artifacts:
+    class: PurgeExpiredArtifactsJob
+    queue: default
+    schedule: every day at 3am

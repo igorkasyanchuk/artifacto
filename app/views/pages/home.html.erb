@@ -1,0 +1,72 @@
+<div class="wrap" data-controller="upload">
+  <h1>Artifacto</h1>
+  <p class="lede">
+    Drop a self-contained HTML file, get a link you can share. No account.
+    Up to <%= @max_mb %> MB, deleted after <%= @ttl_days %> days.
+  </p>
+
+  <div class="panel">
+    <div class="drop"
+         data-upload-target="drop"
+         data-action="click->upload#open dragover->upload#over dragleave->upload#leave drop->upload#drop">
+      Drop an HTML or Markdown file, or click to pick one
+    </div>
+    <input type="file" class="hidden" accept=".html,.htm,.md,.markdown"
+           data-upload-target="input" data-action="upload#picked">
+
+    <div class="grid">
+      <div>
+        <label for="title">Title (optional)</label>
+        <input type="text" id="title" data-upload-target="title">
+      </div>
+      <div>
+        <label for="ttl">Expires in (days)</label>
+        <input type="number" id="ttl" min="1" max="30" value="<%= @ttl_days %>" data-upload-target="ttl">
+      </div>
+      <div>
+        <label for="pin">PIN (optional)</label>
+        <input type="password" id="pin" autocomplete="new-password" data-upload-target="pin">
+      </div>
+    </div>
+
+    <p class="stack">
+      <label class="check">
+        <input type="checkbox" data-upload-target="network">
+        Allow network requests
+      </label>
+      <span class="note">
+        Off by default: the artifact cannot call out, so nothing a viewer types can leave the page.
+        Only turn this on for artifacts that genuinely fetch data.
+      </span>
+    </p>
+
+    <p class="warn hidden" data-upload-target="error"></p>
+
+    <div class="hidden stack" data-upload-target="result">
+      <p><strong>Link:</strong> <a data-upload-target="url" href="#"></a></p>
+      <p class="note">Edit token — shown once, keep it to update or delete this artifact:</p>
+      <pre><code data-upload-target="token"></code></pre>
+    </div>
+  </div>
+
+  <h2>From your AI agent</h2>
+  <pre><code>curl -sf <%= root_url %>api/v1/artifacts \
+  -F "file=@page.html" \
+  -F "title=My report" \
+  -F "expires_in_days=<%= @ttl_days %>"</code></pre>
+
+  <p class="note">
+    The response carries <code>url</code> and a one-time <code>edit_token</code>.
+    Update the same link with
+    <code>curl -X PUT -H "Authorization: Bearer $TOKEN" -F "file=@page.html" <%= root_url %>api/v1/artifacts/SLUG</code>,
+    delete it with <code>DELETE</code>, or push the expiry out with
+    <code>PATCH .../extend</code>.
+  </p>
+
+  <h2>How artifacts are contained</h2>
+  <ul class="note">
+    <li>Every artifact is served from its own subdomain of a separate domain — no shared origin, no access to cookies here.</li>
+    <li><code>connect-src 'none'</code> and <code>form-action 'none'</code>: an artifact cannot send anything anywhere.</li>
+    <li>Only inline, self-contained assets load. External scripts, styles and images are blocked.</li>
+  </ul>
+</div>

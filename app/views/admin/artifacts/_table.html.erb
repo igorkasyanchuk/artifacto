@@ -1,0 +1,21 @@
+<table>
+  <tr><th>Slug</th><th>Title</th><th>Size</th><th>Views</th><th>Expires</th><th>IP hash</th><th></th></tr>
+  <% artifacts.each do |artifact| %>
+    <tr>
+      <td><%= link_to artifact.slug, artifact_path(artifact.slug) %></td>
+      <td><%= artifact.title %></td>
+      <td><%= number_to_human_size artifact.byte_size %></td>
+      <td><%= artifact.view_count %></td>
+      <td><%= artifact.expires_at.to_date %></td>
+      <td class="note"><%= artifact.creator_ip_hash&.first(12) %></td>
+      <td>
+        <% if artifact.blocked? %>
+          blocked
+        <% else %>
+          <%= button_to "Block", block_admin_artifact_path(artifact.slug), method: :post %>
+        <% end %>
+        <%= button_to "Delete", admin_artifact_path(artifact.slug), method: :delete %>
+      </td>
+    </tr>
+  <% end %>
+</table>
