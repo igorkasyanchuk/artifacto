@@ -50,6 +50,14 @@
   </div>
 
   <h2>From your AI agent</h2>
+
+  <p class="note">
+    <%= link_to "Download SKILL.md", skill_path %> and drop it in your project at
+    <code>.claude/skills/artifacto/SKILL.md</code> (or wherever your agent keeps
+    skills). It is pre-filled with this server's URL, so it works as downloaded.
+    Claude Code, Cursor and anything else that can run <code>curl</code> can use it.
+  </p>
+
   <pre><code>curl -sf <%= root_url %>api/v1/artifacts \
   -F "file=@page.html" \
   -F "title=My report" \
@@ -65,7 +73,11 @@
 
   <h2>How artifacts are contained</h2>
   <ul class="note">
-    <li>Every artifact is served from its own subdomain of a separate domain — no shared origin, no access to cookies here.</li>
+    <% if Rails.configuration.x.content_host %>
+      <li>Every artifact is served from its own subdomain of a separate domain — no shared origin, no access to cookies here.</li>
+    <% else %>
+      <li>Every artifact runs in a sandboxed frame with an opaque origin — it cannot read this site's cookies or storage, and no two artifacts share any.</li>
+    <% end %>
     <li><code>connect-src 'none'</code> and <code>form-action 'none'</code>: an artifact cannot send anything anywhere.</li>
     <li>Only inline, self-contained assets load. External scripts, styles and images are blocked.</li>
   </ul>

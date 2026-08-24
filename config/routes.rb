@@ -19,6 +19,7 @@ Rails.application.routes.draw do
   # app works on whatever domain it is deployed under.
   root to: "pages#home"
   get "/robots.txt", to: "pages#robots", as: :app_robots
+  get "/skill", to: "pages#skill", as: :skill
 
   get  "/a/:slug",        to: "artifacts#show",         as: :artifact
   post "/a/:slug/unlock", to: "artifacts#unlock",       as: :unlock_artifact

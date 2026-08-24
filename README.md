@@ -5,6 +5,11 @@ login. The link expires after 14 days.
 
 Built for AI agents first: `skills/artifacto/SKILL.md` teaches Claude Code, Cursor
 or anything else that can run `curl` to publish and then update the same link.
+A running instance serves it at `/skill`, rewritten to point at that instance:
+
+```bash
+curl -sfO https://your-app.example.com/skill -o .claude/skills/artifacto/SKILL.md
+```
 
 ## Why two domains
 
