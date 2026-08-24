@@ -5,7 +5,7 @@ require "base64"
 # straight byte dump; the trade-off is that artifacts created before a VERSION
 # bump keep the old script until they are updated or expire (<= 30 days).
 module AgentInjector
-  VERSION = 1
+  VERSION = 2
   OPEN_MARKER = "<!--artifacto:agent-->"
   CLOSE_MARKER = "<!--/artifacto:agent-->"
   BLOCK = /#{Regexp.escape(OPEN_MARKER)}.*?#{Regexp.escape(CLOSE_MARKER)}\n?/m

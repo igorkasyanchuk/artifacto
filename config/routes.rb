@@ -29,12 +29,14 @@ Rails.application.routes.draw do
     resources :artifacts, only: %i[index destroy], param: :slug do
       post :block, on: :member
     end
+    resources :comments, only: %i[index destroy]
   end
 
   namespace :api do
     namespace :v1 do
       resources :artifacts, only: %i[create show update destroy], param: :slug do
         patch "extend", to: "artifacts#renew", on: :member
+        resources :comments, only: %i[index create destroy]
       end
     end
   end

@@ -1,6 +1,6 @@
 ---
 name: artifacto
-description: Publish a self-contained HTML or Markdown file to Artifacto and get a shareable public link. Use when the user asks to share, publish, host, or send someone a page, report, dashboard, chart, or mockup you just generated — and when they ask to update or take down a page you published earlier.
+description: Publish a self-contained HTML or Markdown file to Artifacto and get a shareable public link, then read the comments readers leave on it. Use when the user asks to share, publish, host, or send someone a page, report, dashboard, chart, or mockup you just generated; when they ask to update or take down a page you published earlier; and when they ask what feedback a published page has received.
 ---
 
 # Artifacto
@@ -77,13 +77,50 @@ curl -sf -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE"
 
 `PUT` keeps the same URL and resets the expiry clock.
 
+## Read the comments
+
+Readers annotate the published page in place — they click a spot and type. That
+feedback is the reason to publish here rather than anywhere else: read it, fix the
+page, `PUT` the same URL.
+
+```bash
+curl -sf "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG/comments"
+```
+
+```json
+{
+  "comments": [
+    {
+      "id": 12,
+      "selector": "body > div:nth-of-type(2) > p",
+      "quote": "Churn is the number that needs a chart here.",
+      "body": "Can we see this as a bar chart?",
+      "created_at": "2026-08-24T16:39:19Z"
+    }
+  ]
+}
+```
+
+`quote` is the text the reader clicked on — use it to find the spot, not `selector`,
+which is a CSS path into the version of the page that was live when they commented.
+
+No token needed to read. When the user asks "any feedback yet?", this is the call.
+After acting on a comment, clear it so it does not come back next time:
+
+```bash
+curl -sf -X DELETE -H "Authorization: Bearer $TOKEN" \
+  "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG/comments/$ID"
+```
+
+Comments survive a `PUT` — updating the page does not wipe the feedback on it.
+
 ## Metadata
 
 ```bash
 curl -sf "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG"
 ```
 
-Returns title, size, view count and expiry. No token needed.
+Returns title, size, view count, comment count and expiry. No token needed.
 
 ## Errors
 

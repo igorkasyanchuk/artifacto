@@ -13,6 +13,11 @@ Rails.application.configure do
     policy.default_src :self
     policy.script_src  :self
     policy.style_src   :self
+    # The comment overlay positions pins and the thread panel by writing to
+    # element.style, which style-src governs. Only the attribute form is opened,
+    # not <style> elements — and this origin renders no untrusted markup: comment
+    # bodies are written with textContent, never innerHTML.
+    policy.style_src_attr :unsafe_inline
     policy.img_src     :self, :data
     policy.font_src    :self, :data
     policy.connect_src :self

@@ -1,12 +1,19 @@
 <% content_for :title, @artifact.title.presence || "Artifact" %>
-<div class="viewer" data-controller="wrapper">
+<div class="viewer" data-controller="wrapper" data-wrapper-slug-value="<%= @artifact.slug %>">
   <div class="bar">
     <strong><%= @artifact.title.presence || "Untitled artifact" %></strong>
-    <span class="note">expires in <%= pluralize(@artifact.ttl_days, "day") %></span>
+    <span class="<%= @artifact.ttl_days <= 3 ? "warn" : "note" %>">
+      expires in <%= pluralize(@artifact.ttl_days, "day") %>
+    </span>
+    <span class="note"><%= pluralize(@artifact.view_count, "view") %></span>
+    <span class="note" data-wrapper-target="count"></span>
     <% if @artifact.allow_network? %>
       <span class="warn">can make network requests</span>
     <% end %>
     <span class="spacer"></span>
+    <% unless @needs_pin %>
+      <button data-wrapper-target="toggle" data-action="wrapper#toggle">Comment</button>
+    <% end %>
     <button data-action="wrapper#copy">Copy link</button>
     <%= form_with url: report_artifact_path(@artifact.slug), method: :post, class: "check" do |form| %>
       <%= form.select :reason, AbuseReport::REASONS.map { |r| [ r.capitalize, r ] } %>
@@ -27,7 +34,25 @@
       <% end %>
     </div>
   <% else %>
-    <iframe class="frame" src="<%= @iframe_src %>" data-wrapper-target="frame"
-            title="<%= @artifact.title.presence || "Artifact" %>"></iframe>
+    <div class="stage">
+      <iframe class="frame" src="<%= @iframe_src %>" data-wrapper-target="frame"
+              title="<%= @artifact.title.presence || "Artifact" %>"></iframe>
+
+      <%# Pins and threads are drawn here, on the app origin. The artifact only
+          ever reports coordinates — it never receives a comment body. %>
+      <div class="overlay" data-wrapper-target="overlay"></div>
+
+      <form class="panel thread" hidden data-wrapper-target="panel" data-action="submit->wrapper#submit">
+        <p class="note" data-wrapper-target="quote"></p>
+        <div data-wrapper-target="list"></div>
+        <textarea rows="3" placeholder="Leave a comment" maxlength="<%= Comment::MAX_BODY %>"
+                  data-wrapper-target="body"></textarea>
+        <p class="warn" hidden data-wrapper-target="error"></p>
+        <p class="check">
+          <button class="primary">Comment</button>
+          <button type="button" data-action="wrapper#close">Cancel</button>
+        </p>
+      </form>
+    </div>
   <% end %>
 </div>

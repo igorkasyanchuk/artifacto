@@ -1,10 +1,9 @@
 module Api
   module V1
     class ArtifactsController < ApplicationController
-      skip_forgery_protection
-      skip_before_action :verify_authenticity_token, raise: false
+      include ArtifactApi
 
-      before_action :load_artifact, except: :create
+      skip_before_action :load_artifact, only: :create
       before_action :require_edit_token, only: %i[update renew destroy]
 
       rate_limit to: 20, within: 1.hour, only: :create,
@@ -63,21 +62,6 @@ module Api
       end
 
       private
-        def load_artifact
-          @artifact = Artifact.find_by(slug: params[:slug])
-          return render(json: { error: "not found" }, status: :not_found) if @artifact.nil?
-          return render(json: { error: "blocked" }, status: :unavailable_for_legal_reasons) if @artifact.blocked?
-          render(json: { error: "expired" }, status: :gone) if @artifact.expired?
-        end
-
-        def require_edit_token
-          return if @artifact.authenticate_edit_token(bearer_token)
-
-          render json: { error: "invalid edit token" }, status: :unauthorized
-        end
-
-        def bearer_token = request.headers["Authorization"].to_s[/\ABearer (.+)\z/, 1]
-
         def oversized_request? = request.content_length.to_i > Artifact.max_bytes + 64.kilobytes
 
         def uploaded_source
@@ -93,10 +77,6 @@ module Api
 
         def boolean(value) = ActiveModel::Type::Boolean.new.cast(value).present?
 
-        def too_many_requests
-          render json: { error: "rate limit exceeded" }, status: :too_many_requests
-        end
-
         def payload(artifact, edit_token: nil)
           {
             slug: artifact.slug,
@@ -108,6 +88,7 @@ module Api
             allow_network: artifact.allow_network,
             has_pin: artifact.pin?,
             view_count: artifact.view_count,
+            comment_count: artifact.comments.size,
             expires_at: artifact.expires_at.utc.iso8601
           }.tap { |body| body[:edit_token] = edit_token if edit_token }
         end

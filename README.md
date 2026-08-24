@@ -219,6 +219,64 @@ curl -s https://<slug>.<content-host>/ | gunzip | sha256sum
 Compare against `Artifact#served_html` for that slug. A mismatch means Rocket
 Loader is on.
 
+## Comments
+
+Readers annotate an artifact in place: click **Comment** in the wrapper bar, click a
+spot in the page, type. A pin appears there and stacks into a thread on repeat
+visits. No account — whoever holds the link can comment.
+
+The wrapper page and the artifact never share a document, so the whole feature
+runs over the `postMessage` channel opened by `app/javascript/artifact_agent.js`:
+
+| Direction | Message | Payload |
+|---|---|---|
+| artifact → app | `artifacto:ready` | — |
+| artifact → app | `artifacto:anchor` | the clicked element's selector, a text quote, click coordinates |
+| artifact → app | `artifacto:positions` | where each anchor currently sits, re-sent on scroll and resize |
+| app → artifact | `artifacto:mode` | comment mode on/off |
+| app → artifact | `artifacto:anchors` | the selectors and quotes to resolve |
+
+**Comment bodies never cross into the artifact.** The frame is asked where things
+are and nothing else; every body is fetched, stored and rendered on the app origin,
+with `textContent`, so reader text can never become markup in either zone.
+
+**Re-anchoring.** A `PUT` replaces the artifact body, so the stored `nth-of-type`
+chain usually stops resolving the moment the agent updates the page. That is why
+the quote is stored next to it: when the selector misses, the artifact side looks
+for the deepest element still containing that text. Pins say which happened —
+blue resolved by selector, violet re-anchored on the quote, red could not be
+placed at all and parks in the top-left corner rather than disappearing.
+
+### For the agent that wrote the artifact
+
+This is the loop the product exists for: publish, get read, get told what is wrong,
+fix it, `PUT` the same URL.
+
+```bash
+curl -sf "$BASE/api/v1/artifacts/$SLUG/comments"
+curl -sf -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/api/v1/artifacts/$SLUG/comments/$ID"
+```
+
+Reading needs nothing; deleting needs the edit token. `skills/artifacto/SKILL.md`
+documents both.
+
+### Moderation
+
+Comments are the first user text served from the app's own origin, and
+`blocked_hashes` does not cover them — that list is about artifact bytes. What
+holds the line instead:
+
+- 20 comments per IP per hour (Rails' `rate_limit`, so Redis-backed and surviving deploys)
+  and 500 per artifact.
+- 2 000 characters, stored as text, rendered as text.
+- `author_ip_hash` on every row, the same HMAC used for artifacts.
+- `/admin/comments` lists the most recent 200 and deletes any of them.
+
+**Comments and single-origin mode are a bad pair.** In single-origin mode your app
+domain already serves attacker-supplied HTML; a commenting surface on the same
+domain adds attacker-supplied *text* under your brand, with a form that invites it.
+Set `CONTENT_HOST` before turning readers loose on a public instance.
+
 ## Abuse
 
 Upload is open to anyone with no key, so assume the service will be found.
@@ -236,6 +294,7 @@ phishing and malware pages simply do not function here.
 |---|---|
 | Illegal or abusive images, embedded as base64 | Report button → `/admin` → block, which adds the file hash *and* every embedded image hash to `blocked_hashes`. Re-uploading the same bytes then fails with 451, in any wrapper |
 | Text-only scams, hate, doxxing | Report and manual review. No automated classifier yet |
+| Abusive comments | Rate limited per IP, capped per artifact, deleted from `/admin/comments`. See **Comments** above |
 | Anything at all | 14-day TTL bounds exposure; `noindex` keeps it out of search |
 
 `blocked_hashes` is exact SHA-256, so a single flipped byte evades it. Perceptual
@@ -265,10 +324,11 @@ produced one can produce it again.
 
 ## Not built yet
 
-- **Comments** — the wrapper page and the injected `artifact_agent.js` already
-  exchange `artifacto:*` messages over `postMessage`. The overlay, the `comments`
-  table and `GET /api/v1/artifacts/:slug/comments` are the next phase, and are the
-  actual point of the product: an artifact whose reader feedback comes back to the
-  agent that wrote it.
-- Accounts and a dashboard (`artifacts.user_id` is already there).
+- Accounts and a dashboard (`artifacts.user_id` is already there). Until then the
+  edit token is shown exactly once and cannot be recovered: lose it and the link
+  is permanent and unchangeable until it expires.
+- Owner controls on the wrapper page. Extending expiry and deleting are API-only,
+  so anyone holding the edit token has to reach for `curl`.
+- Threaded replies. Comments sharing an anchor render as one thread; there is no
+  parent/child relationship behind that.
 - Version history and rollback.

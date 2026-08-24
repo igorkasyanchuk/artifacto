@@ -15,6 +15,22 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "<p>wrapped</p>"
   end
 
+  test "the wrapper carries the comment overlay and the slug its fetch needs" do
+    get "/a/#{@artifact.slug}"
+
+    assert_select "[data-wrapper-slug-value=?]", @artifact.slug
+    assert_select "[data-wrapper-target=overlay]"
+    assert_select "[data-action='wrapper#toggle']"
+  end
+
+  test "a locked artifact offers nothing to comment on until it is unlocked" do
+    @artifact.update!(pin: "1234")
+
+    get "/a/#{@artifact.slug}"
+    assert_select "[data-wrapper-target=overlay]", false
+    assert_select "[data-action='wrapper#toggle']", false
+  end
+
   test "a pinned artifact asks for the PIN before framing anything" do
     @artifact.update!(pin: "1234")
 

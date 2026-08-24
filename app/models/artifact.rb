@@ -18,6 +18,7 @@ class Artifact < ApplicationRecord
   TTL_DAYS = (1..30)
 
   has_many :abuse_reports, dependent: :delete_all
+  has_many :comments, dependent: :delete_all
 
   encrypts :creator_ip
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_24_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -56,5 +56,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_130000) do
     t.index ["sha256"], name: "index_blocked_hashes_on_sha256", unique: true
   end
 
+  create_table "comments", force: :cascade do |t|
+    t.bigint "artifact_id", null: false
+    t.string "author_ip_hash"
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.text "quote"
+    t.string "selector", null: false
+    t.datetime "updated_at", null: false
+    t.index ["artifact_id", "created_at"], name: "index_comments_on_artifact_id_and_created_at"
+    t.index ["artifact_id"], name: "index_comments_on_artifact_id"
+  end
+
   add_foreign_key "abuse_reports", "artifacts"
+  add_foreign_key "comments", "artifacts"
 end

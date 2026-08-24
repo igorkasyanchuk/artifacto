@@ -1,5 +1,6 @@
 <div class="wrap">
   <h1>Admin</h1>
+  <p class="note"><%= link_to "Comments", admin_comments_path %></p>
 
   <h2>Reported (<%= @reported.size %>)</h2>
   <%= render "table", artifacts: @reported %>
