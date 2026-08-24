@@ -21,14 +21,18 @@ Rails.application.configure do
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
 
-  # Assume all access to the app is happening through a SSL-terminating reverse proxy.
-  # config.assume_ssl = true
+  # TLS terminates at the proxy in front of this app (Coolify's Traefik, kamal-proxy,
+  # Cloudflare), which then speaks plain HTTP to the container. Without assume_ssl
+  # Rails would see http, mark cookies insecure, and force_ssl would redirect in a
+  # loop. Set FORCE_SSL=false only if the app is genuinely served over http.
+  if ENV.fetch("FORCE_SSL", "true") == "true"
+    config.assume_ssl = true
+    config.force_ssl = true
 
-  # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  # config.force_ssl = true
-
-  # Skip http-to-https redirect for the default health check endpoint.
-  # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
+    # The health check is requested over http from inside the network, so it must
+    # answer 200 rather than a redirect or the platform calls the deploy dead.
+    config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
+  end
 
   # Log to STDOUT with the current request id as a default log tag.
   config.log_tags = [ :request_id ]
@@ -43,8 +47,19 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Nothing reads Rails.cache yet, so the default in-process store is enough.
-  # ponytail: switch to :redis_cache_store (Redis is already here) when it isn't.
+  # Rails.cache is where ActionController::RateLimiting keeps its counters, so it
+  # has to outlive a deploy and be shared by every process. The default file
+  # store is neither. Redis is already here for Sidekiq.
+  config.cache_store = :redis_cache_store, {
+    url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"),
+    namespace: "artifacto:cache",
+    error_handler: ->(method:, returning:, exception:) {
+      # A cache outage must not take the whole app down with it. Rate limiting
+      # fails open here, which is the same thing the file store did on a fresh
+      # container, and Cloudflare's rule is the real backstop anyway.
+      Rails.logger.error("Rails.cache #{method} failed: #{exception.class}: #{exception.message}")
+    }
+  }
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   config.active_job.queue_adapter = :sidekiq

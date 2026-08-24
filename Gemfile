@@ -30,6 +30,9 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 gem "sidekiq", "~> 8.0"
 gem "sidekiq-cron", "~> 2.0"
 
+# Backs Rails.cache, which is what ActionController::RateLimiting counts into.
+gem "redis", "~> 5.4"
+
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 

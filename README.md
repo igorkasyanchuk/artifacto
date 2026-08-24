@@ -101,7 +101,7 @@ the app reads nothing from disk that is not in git.
 | `AR_ENCRYPTION_DETERMINISTIC_KEY` | `2a5f10...` (32+ chars, a *different* `bin/rails secret`) | Deterministic encryption key |
 | `AR_ENCRYPTION_SALT` | `c710b4...` (32+ chars, a *third* `bin/rails secret`) | Key derivation salt |
 | `DATABASE_URL` | `postgres://artifacto:s3cret@artifacto-db:5432/artifacto_production` | Merged over `config/database.yml`. Use the `DB_*` vars below instead if you prefer |
-| `REDIS_URL` | `redis://artifacto-redis:6379/0` | Sidekiq queue and cron |
+| `REDIS_URL` | `redis://artifacto-redis:6379/0` | Sidekiq queue and cron, and `Rails.cache` — which is where the API's rate-limit counters live, so this is not optional |
 
 Boot fails loudly if any of the `AR_ENCRYPTION_*` keys are missing, so a
 misconfigured deploy never quietly writes unencrypted IPs.
@@ -123,6 +123,7 @@ misconfigured deploy never quietly writes unencrypted IPs.
 | `WEB_CONCURRENCY` | unset (single process) | `2` | Puma workers. Incompatible with `SIDEKIQ_IN_PUMA` |
 | `PORT` | `3000` | `3000` | Puma's port. Thruster fronts it on 80 in the image |
 | `RAILS_LOG_LEVEL` | `info` | `debug` | |
+| `FORCE_SSL` | `true` | `false` | Redirects to https and marks cookies secure, assuming TLS terminates at the proxy in front. Set `false` only if the app is really served over http |
 
 **Application**
 
