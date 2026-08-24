@@ -39,7 +39,7 @@ registry:
 # Inject ENV variables into containers (secrets come from .kamal/secrets).
 env:
   secret:
-    - RAILS_MASTER_KEY
+    - SECRET_KEY_BASE
     - ARTIFACTO_DATABASE_PASSWORD
     - IP_HASH_SECRET        # HMAC key for creator_ip_hash; rotating it orphans existing bans
     - ADMIN_USER
@@ -50,17 +50,18 @@ env:
     - AR_ENCRYPTION_DETERMINISTIC_KEY
     - AR_ENCRYPTION_SALT
   clear:
-    APP_HOST: artifacto.app
+    APP_ORIGIN: https://artifacto.app
     CONTENT_HOST: artifactousercontent.com
     MAX_UPLOAD_BYTES: 5242880
     DEFAULT_TTL_DAYS: 14
     DB_HOST: artifacto-db
-    # Run the Solid Queue Supervisor inside the web server's Puma process to do jobs.
-    # When you start using multiple servers, you should split out job processing to a dedicated machine.
-    SOLID_QUEUE_IN_PUMA: true
+    REDIS_URL: redis://artifacto-redis:6379/0
+    # Run Sidekiq inside the web server's Puma process. Single-process Puma only —
+    # split jobs into their own container before setting WEB_CONCURRENCY.
+    SIDEKIQ_IN_PUMA: true
 
-    # Set number of processes dedicated to Solid Queue (default: 1)
-    # JOB_CONCURRENCY: 3
+    # Number of Sidekiq threads (default: 3)
+    # SIDEKIQ_CONCURRENCY: 3
 
     # Set number of cores available to the application on each server (default: 1).
     # WEB_CONCURRENCY: 2
@@ -142,6 +143,13 @@ accessories:
         - POSTGRES_PASSWORD
     directories:
       - data:/var/lib/postgresql/data
+
+  redis:
+    image: valkey/valkey:8
+    host: 1.2.3.4
+    cmd: valkey-server --maxmemory-policy noeviction --appendonly yes
+    directories:
+      - data:/data
 
   # Outbound-only connection to Cloudflare: no port 80/443 exposed on the host.
   # Point both public hostnames at http://kamal-proxy:80 in the tunnel config.

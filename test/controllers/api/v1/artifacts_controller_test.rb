@@ -5,8 +5,6 @@ module Api
     class ArtifactsControllerTest < ActionDispatch::IntegrationTest
       HTML = "<!DOCTYPE html><html><body><p>v1</p></body></html>".freeze
 
-      setup { host! Rails.configuration.x.app_host }
-
       # Rack caps urlencoded bodies at 4 MB, so anything near the 5 MB limit has to
       # arrive as multipart or as a raw body — which is what the skill and docs use.
       def upload(content, name: "page.html", type: "text/html")

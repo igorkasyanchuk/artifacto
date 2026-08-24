@@ -17,7 +17,9 @@ default: &default
   encoding: unicode
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
-  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # Sidekiq runs embedded in Puma (see config/puma.rb) and takes checkouts from the
+  # same pool, so its threads have to be counted here too.
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 }.to_i + ENV.fetch("SIDEKIQ_CONCURRENCY") { 3 }.to_i %>
 
 
 development:
@@ -92,21 +94,12 @@ test:
 # Read https://guides.rubyonrails.org/configuring.html#configuring-a-database
 # for a full overview on how database connection configuration can be specified.
 #
+# DATABASE_URL, when set, is merged on top of this — that is how the platform
+# hands the app its Postgres.
 production:
-  primary: &primary_production
-    <<: *default
-    database: artifacto_production
-    username: artifacto
-    password: <%= ENV["ARTIFACTO_DATABASE_PASSWORD"] %>
-  cache:
-    <<: *primary_production
-    database: artifacto_production_cache
-    migrations_paths: db/cache_migrate
-  queue:
-    <<: *primary_production
-    database: artifacto_production_queue
-    migrations_paths: db/queue_migrate
-  cable:
-    <<: *primary_production
-    database: artifacto_production_cable
-    migrations_paths: db/cable_migrate
+  <<: *default
+  database: artifacto_production
+  username: <%= ENV.fetch("DB_USER", "artifacto") %>
+  password: <%= ENV["ARTIFACTO_DATABASE_PASSWORD"] %>
+  host: <%= ENV.fetch("DB_HOST", "localhost") %>
+  port: <%= ENV.fetch("DB_PORT", 5432) %>

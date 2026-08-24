@@ -26,10 +26,9 @@ gem "bcrypt", "~> 3.1.7"
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
-# Use the database-backed adapters for Rails.cache, Active Job, and Action Cable
-gem "solid_cache"
-gem "solid_queue"
-gem "solid_cable"
+# Background jobs. Runs embedded inside Puma in production, see config/puma.rb.
+gem "sidekiq", "~> 8.0"
+gem "sidekiq-cron", "~> 2.0"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false

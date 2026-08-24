@@ -13,12 +13,14 @@ Isolation is the architecture, not a setting:
 
 | Zone | Serves | Notes |
 |---|---|---|
-| `APP_HOST` (e.g. `artifacto.app`) | Landing page, wrapper page, API, admin | Sessions and cookies live here |
+| `APP_ORIGIN` (e.g. `https://artifacto.app`) | Landing page, wrapper page, API, admin | Sessions and cookies live here |
 | `<slug>.CONTENT_HOST` (e.g. `<slug>.artifactousercontent.com`) | The artifact itself | Separate registrable domain, one origin per artifact, no cookies ever set |
 
-`CONTENT_HOST` must be a **different registrable domain**, not a subdomain of
-`APP_HOST` — that is what makes it impossible for an artifact to receive an app
-cookie. Give it a boring, unbranded name: it will eventually be reported for
+The app itself is not host-constrained — it answers on whatever domain it is
+deployed under, and `APP_ORIGIN` only pins the origin used in `frame-ancestors`
+and in the URLs the API returns. `CONTENT_HOST` must be a **different registrable
+domain**, not a subdomain of the app — that is what makes it impossible for an
+artifact to receive an app cookie. Give it a boring, unbranded name: it will eventually be reported for
 somebody's phishing page, and you do not want your brand in that blocklist.
 
 Each artifact gets its own subdomain, so no two artifacts share `localStorage`,
@@ -35,15 +37,15 @@ gets a much stricter policy.
 
 ## Local development
 
-Both zones default to `*.localhost`, which browsers resolve to 127.0.0.1 with no
-`/etc/hosts` editing.
+Artifact subdomains default to `*.usercontent.localhost`, which browsers resolve
+to 127.0.0.1 with no `/etc/hosts` editing. The app is on plain `localhost`.
 
 ```bash
 bin/setup
 bin/rails server -p 3000
 ```
 
-Then open <http://artifacto.localhost:3000>. Artifacts appear at
+Then open <http://localhost:3000>. Artifacts appear at
 `http://<slug>.usercontent.localhost:3000/`.
 
 If port 3000 is taken, pass the port in both places so generated URLs match:
@@ -62,9 +64,13 @@ bin/rails test
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `APP_HOST` | `artifacto.localhost` | Landing page, API, wrapper |
+| `APP_ORIGIN` | `http://localhost:$PORT` | Origin used in `frame-ancestors` and in returned URLs. **Required in production** |
 | `CONTENT_HOST` | `usercontent.localhost` | Parent domain for artifact subdomains |
-| `APP_ORIGIN` | derived | Used in `frame-ancestors` and in returned URLs |
+| `SECRET_KEY_BASE` | — | **Required in production.** There are no encrypted credentials; every secret is an env var |
+| `DATABASE_URL` | — | Merged over `config/database.yml` when set |
+| `REDIS_URL` | `redis://localhost:6379/0` | Sidekiq queue and cron |
+| `SIDEKIQ_IN_PUMA` | unset | Run Sidekiq inside Puma. Single-process Puma only |
+| `SIDEKIQ_CONCURRENCY` | `3` | Sidekiq threads; counted into the Active Record pool |
 | `MAX_UPLOAD_BYTES` | `5242880` | Hard upload limit |
 | `DEFAULT_TTL_DAYS` | `14` | Default lifetime, 1–30 allowed |
 | `IP_HASH_SECRET` | `dev-secret` | HMAC key for `creator_ip_hash`; rotating it orphans existing bans |
@@ -73,11 +79,22 @@ bin/rails test
 
 ## Deploy
 
-`bin/kamal setup` against one small box. Postgres runs as an accessory next to the
-app; Solid Queue runs inside Puma.
+Any Docker host works — the image reads everything from env vars, so there is no
+`master.key` to ship. Set at minimum `SECRET_KEY_BASE`, `APP_ORIGIN`,
+`CONTENT_HOST`, `DATABASE_URL` (or the `DB_*` vars), `REDIS_URL`,
+`SIDEKIQ_IN_PUMA=true` and the three `AR_ENCRYPTION_*` keys.
+
+Generate the secrets once:
+
+```bash
+bin/rails secret   # SECRET_KEY_BASE, AR_ENCRYPTION_*, IP_HASH_SECRET
+```
+
+`config/deploy.yml` still describes a Kamal deploy onto one small box: Postgres
+and Valkey run as accessories next to the app, and Sidekiq runs inside Puma.
 
 **Networking.** kamal-proxy takes every host that reaches it, because it has to
-answer for `APP_HOST` and for every artifact subdomain. Let's Encrypt cannot issue
+answer for the app's own hostname and for every artifact subdomain. Let's Encrypt cannot issue
 that wildcard over HTTP-01, so TLS terminates at Cloudflare and the last hop runs
 through a Cloudflare Tunnel (`tunnel` accessory). The box needs no certificate and
 no inbound port. Point both public hostnames at `http://kamal-proxy:80` in the

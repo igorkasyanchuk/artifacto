@@ -34,8 +34,26 @@ port ENV.fetch("PORT", 3000)
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
 
-# Run the Solid Queue supervisor inside of Puma for single-server deployments.
-plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
+# Run Sidekiq inside Puma for single-server deployments.
+# ponytail: single-process Puma only. `after_booted` fires in the master, which
+# never loads the app in cluster mode, so a clustered Puma would boot a Sidekiq
+# with no Rails. Split jobs into their own container before scaling web workers.
+if ENV["SIDEKIQ_IN_PUMA"]
+  raise "SIDEKIQ_IN_PUMA requires single-process Puma; unset WEB_CONCURRENCY" if ENV["WEB_CONCURRENCY"].to_i > 1
+
+  require "sidekiq/embedded"
+
+  sidekiq = nil
+  after_booted do
+    sidekiq = Sidekiq.configure_embed do |config|
+      config.concurrency = ENV.fetch("SIDEKIQ_CONCURRENCY", 3).to_i
+    end
+    sidekiq.run
+  end
+  # Puma fires this from a signal handler, and Sidekiq's shutdown takes a Mutex,
+  # which Ruby forbids in trap context. A plain thread gets out of that context.
+  after_stopped { Thread.new { sidekiq&.stop }.join }
+end
 
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.

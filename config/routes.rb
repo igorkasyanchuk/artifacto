@@ -8,28 +8,28 @@ Rails.application.routes.draw do
     match "*path", to: "raw#not_found", via: :all
   end
 
-  constraints(host: Rails.configuration.x.app_host) do
-    root to: "pages#home"
-    get "/robots.txt", to: "pages#robots", as: :app_robots
+  # Everything else is the app zone. Deliberately unconstrained by host so the
+  # app works on whatever domain it is deployed under.
+  root to: "pages#home"
+  get "/robots.txt", to: "pages#robots", as: :app_robots
 
-    get  "/a/:slug",        to: "artifacts#show",         as: :artifact
-    post "/a/:slug/unlock", to: "artifacts#unlock",       as: :unlock_artifact
-    post "/a/:slug/report", to: "abuse_reports#create",   as: :report_artifact
+  get  "/a/:slug",        to: "artifacts#show",         as: :artifact
+  post "/a/:slug/unlock", to: "artifacts#unlock",       as: :unlock_artifact
+  post "/a/:slug/report", to: "abuse_reports#create",   as: :report_artifact
 
-    namespace :admin do
-      resources :artifacts, only: %i[index destroy], param: :slug do
-        post :block, on: :member
-      end
+  namespace :admin do
+    resources :artifacts, only: %i[index destroy], param: :slug do
+      post :block, on: :member
     end
-
-    namespace :api do
-      namespace :v1 do
-        resources :artifacts, only: %i[create show update destroy], param: :slug do
-          patch "extend", to: "artifacts#renew", on: :member
-        end
-      end
-    end
-
-    get "up" => "rails/health#show", as: :rails_health_check
   end
+
+  namespace :api do
+    namespace :v1 do
+      resources :artifacts, only: %i[create show update destroy], param: :slug do
+        patch "extend", to: "artifacts#renew", on: :member
+      end
+    end
+  end
+
+  get "up" => "rails/health#show", as: :rails_health_check
 end

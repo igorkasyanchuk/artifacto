@@ -4,7 +4,6 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
   HTML = "<!DOCTYPE html><html><body><p>wrapped</p></body></html>".freeze
 
   setup do
-    host! Rails.configuration.x.app_host
     @artifact = Artifact.create_from_source!(HTML, title: "Wrapped")
   end
 

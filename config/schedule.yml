@@ -1,0 +1,6 @@
+# Loaded automatically by sidekiq-cron on server startup.
+purge_expired_artifacts:
+  cron: "0 3 * * *"
+  class: PurgeExpiredArtifactsJob
+  queue: default
+  active_job: true
