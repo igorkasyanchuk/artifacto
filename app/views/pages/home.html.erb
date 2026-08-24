@@ -52,11 +52,24 @@
   <h2>From your AI agent</h2>
 
   <p class="note">
-    <%= link_to "Download SKILL.md", skill_path %> and drop it in your project at
-    <code>.claude/skills/artifacto/SKILL.md</code> (or wherever your agent keeps
-    skills). It is pre-filled with this server's URL, so it works as downloaded.
-    Claude Code, Cursor and anything else that can run <code>curl</code> can use it.
+    Install the skill once and your agent can publish and update links on its own.
+    Run this in your project — it is already pointed at this server.
   </p>
+
+  <div data-controller="clipboard">
+    <pre><code data-clipboard-target="source">mkdir -p .claude/skills/artifacto &amp;&amp; curl -sf <%= skill_url %> -o .claude/skills/artifacto/SKILL.md</code></pre>
+    <p class="stack">
+      <button data-clipboard-target="button" data-action="clipboard#copy">Copy command</button>
+      <%= link_to "Download SKILL.md", skill_path, class: "note" %>
+    </p>
+  </div>
+
+  <p class="note">
+    Works with Claude Code, Cursor, or anything else that can run <code>curl</code>.
+    Other agents read skills from a different directory — change the path to match.
+  </p>
+
+  <h3>Or call the API directly</h3>
 
   <pre><code>curl -sf <%= root_url %>api/v1/artifacts \
   -F "file=@page.html" \

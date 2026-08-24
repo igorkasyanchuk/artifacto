@@ -16,10 +16,15 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "#{base}/a/#{PagesController::SKILL_SAMPLE_SLUG}"
   end
 
-  test "the landing page offers the skill" do
+  test "the landing page carries an install command built from the requesting host" do
+    host! "some-random-name.example.net"
     get "/"
 
     assert_response :success
     assert_select "a[href=?]", "/skill"
+    # The command is copied verbatim, so a placeholder host would send the agent
+    # to the wrong server without anyone noticing.
+    assert_select "[data-clipboard-target=source]",
+      text: /curl -sf http:\/\/some-random-name\.example\.net\/skill/
   end
 end
