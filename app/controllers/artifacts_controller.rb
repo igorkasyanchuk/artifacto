@@ -2,6 +2,8 @@
 # the comment overlay. It never renders artifact HTML itself — that always comes
 # from the content origin inside an iframe.
 class ArtifactsController < ApplicationController
+  UNLOCK_WINDOW = 10.minutes
+
   before_action :load_artifact
 
   def show
@@ -12,7 +14,7 @@ class ArtifactsController < ApplicationController
 
   def unlock
     if @artifact.pin? && @artifact.authenticate_pin(params[:pin].to_s)
-      redirect_to artifact_path(@artifact.slug, k: pin_verifier.generate(@artifact.slug, expires_in: 10.minutes))
+      redirect_to artifact_path(@artifact.slug, k: pin_verifier.generate(@artifact.slug, expires_in: UNLOCK_WINDOW))
     else
       @needs_pin = true
       flash.now[:alert] = "Wrong PIN."
@@ -28,10 +30,13 @@ class ArtifactsController < ApplicationController
       render(:expired, status: :gone) if @artifact.expired?
     end
 
+    # Re-minted rather than passed through: the token the reader arrived with may
+    # be seconds from expiring, and the comment overlay holds on to it for as
+    # long as the page stays open. A reload therefore buys a fresh window.
     def valid_unlock_token
       return nil unless @artifact.pin?
+      return nil unless pin_verifier.verified(params[:k].to_s) == @artifact.slug
 
-      token = params[:k].to_s
-      pin_verifier.verified(token) == @artifact.slug ? token : nil
+      pin_verifier.generate(@artifact.slug, expires_in: UNLOCK_WINDOW)
     end
 end

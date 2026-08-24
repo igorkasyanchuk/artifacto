@@ -246,11 +246,15 @@ the quote is stored next to it. The quote also decides on the *happy* path: a
 selector that still resolves is not proof it resolves to the same thing — insert
 one paragraph and `body > p:nth-of-type(2)` points at different text — so the
 element it finds only counts if it still contains the quote. Otherwise the frame
-searches for the deepest element that does. Pins say which happened: blue
+searches for the deepest element that does — over rendered text only, since
+`textContent` includes the source of any `<script>`, and an artifact that builds
+its own page contains the very words the reader quoted out of it. Pins say which happened: blue
 resolved and still says the same thing, violet re-anchored on the quote, red
 could not be placed at all and parks in the top-left corner rather than
-disappearing. A frame that never answers gets the same red treatment after a
-moment, so a hostile artifact cannot hide criticism of itself by staying quiet.
+disappearing. Nothing acknowledges an anchors message, so the pins are the receipt: the page
+asks again while any of them is unplaced, and a frame that still says nothing
+gets the red treatment. That covers both a hook older than the current protocol
+and an artifact declining to answer about criticism of itself.
 
 **A PIN covers the comments too.** A stored quote is up to 200 characters lifted
 straight out of the page, so the comment endpoints take the same short-lived

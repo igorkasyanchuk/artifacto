@@ -6,7 +6,7 @@
 # script, which blocks the script outright.
 class RefreshAgentHook < ActiveRecord::Migration[8.1]
   def up
-    Artifact.find_each(&:refresh_agent_hook!)
+    Artifact.find_each(batch_size: 50, &:refresh_agent_hook!)
   end
 
   # Nothing to undo: the previous script is not kept anywhere, and re-splicing is

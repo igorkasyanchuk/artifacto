@@ -38,7 +38,12 @@
     </div>
   <% else %>
     <div class="stage">
+      <%# The frame's own load event is the only moment its message listener is
+          certainly attached: artifacto:ready can be sent before Stimulus has
+          connected here, and the send that follows the comments fetch races the
+          frame's parser. Sending again here costs one postMessage. %>
       <iframe class="frame" src="<%= @iframe_src %>" data-wrapper-target="frame"
+              data-action="load->wrapper#sendAnchors"
               title="<%= @artifact.title.presence || "Artifact" %>"></iframe>
 
       <%# Pins and threads are drawn here, on the app origin. The artifact only

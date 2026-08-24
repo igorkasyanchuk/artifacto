@@ -31,6 +31,20 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-action='wrapper#toggle']", false
   end
 
+  test "each render of an unlocked artifact hands out a fresh token" do
+    @artifact.update!(pin: "1234")
+    verifier = Rails.application.message_verifier(:artifact_pin)
+
+    post "/a/#{@artifact.slug}/unlock", params: { pin: "1234" }
+    arrived_with = request.query_parameters["k"] || response.location[/k=([^&]+)/, 1]
+    follow_redirect!
+
+    handed_out = response.body[/data-wrapper-token-value="([^"]+)"/, 1]
+    assert_equal @artifact.slug, verifier.verified(CGI.unescape(handed_out))
+    assert_not_equal CGI.unescape(arrived_with.to_s), handed_out,
+      "the overlay holds this for as long as the page stays open, so it must not inherit the arriving token's remaining life"
+  end
+
   test "a pinned artifact asks for the PIN before framing anything" do
     @artifact.update!(pin: "1234")
 

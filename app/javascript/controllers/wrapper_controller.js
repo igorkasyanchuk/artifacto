@@ -12,6 +12,7 @@ export default class extends Controller {
   connect() {
     this.pins = new Map()
     this.groups = new Map()
+    this.placed = new Set()
     this.mode = false
     this.onMessage = this.onMessage.bind(this)
     window.addEventListener("message", this.onMessage)
@@ -35,7 +36,14 @@ export default class extends Controller {
 
   async load() {
     const response = await fetch(this.endpoint, { headers: { Accept: "application/json" } })
-    if (!response.ok) return
+
+    if (!response.ok) {
+      // A locked artifact whose unlock token has run out. Say so: the iframe
+      // keeps rendering from cache, so nothing else on the page would hint that
+      // this is a lapsed session rather than an artifact nobody has commented on.
+      if (response.status === 401) this.countTarget.textContent = "comments locked — reload to enter the PIN again"
+      return
+    }
 
     const { comments } = await response.json()
 
@@ -59,6 +67,8 @@ export default class extends Controller {
   drawPins() {
     this.overlayTarget.replaceChildren()
     this.pins.clear()
+    this.placed.clear()
+    this.attempts = 0
 
     for (const group of this.groups.values()) {
       const pin = document.createElement("button")
@@ -74,31 +84,39 @@ export default class extends Controller {
   }
 
   place(positions) {
-    clearTimeout(this.anchorTimeout)
     let detached = 0
 
     for (const position of positions) {
       const pin = this.pins.get(position.key)
       if (!pin) continue
 
-      // An element scrolled entirely past the top or left edge takes its pin with
-      // it. Clamping those to the edge instead would leave a pin sitting on
-      // whatever happens to be visible there, claiming to mark it.
-      if (position.found && (position.y + position.height <= 0 || position.x + position.width <= 0)) {
+      // Recorded per pin, not as one "the frame answered" flag: the frame also
+      // answers the empty anchor list sent before the comments have loaded, and
+      // that reply must not count as having placed anything.
+      this.placed.add(position.key)
+
+      // A zero box is not proof the element is off-screen: it is equally what an
+      // unlaid-out or display:none element measures, and hiding on that reading
+      // loses the comment entirely. Only a real box can place a pin, or rule
+      // that its element has scrolled past the top or left edge and should go
+      // with it rather than clamp to that edge and appear to mark what is there.
+      const measured = position.found && (position.width > 0 || position.height > 0)
+
+      if (measured && (position.y + position.height <= 0 || position.x + position.width <= 0)) {
         pin.hidden = true
         continue
       }
 
-      // An anchor whose element is gone parks in the corner instead of vanishing:
-      // the comment still exists and still has to be reachable. A found one is
+      // Anything we cannot place parks in the corner instead of vanishing: the
+      // comment still exists and still has to be reachable. A placed one is
       // nudged into the margin so the pin does not cover the text it marks, and
       // clamped only when its element straddles the edge.
-      const x = position.found ? Math.max(0, position.x - 20) : 8 + detached * 28
-      const y = position.found ? Math.max(0, position.y - 2) : 8
-      if (!position.found) detached += 1
+      const x = measured ? Math.max(0, position.x - 20) : 8 + detached * 28
+      const y = measured ? Math.max(0, position.y - 2) : 8
+      if (!measured) detached += 1
 
-      pin.classList.toggle("is-detached", !position.found)
-      pin.classList.toggle("is-moved", !!position.moved)
+      pin.classList.toggle("is-detached", !measured)
+      pin.classList.toggle("is-moved", measured && !!position.moved)
       pin.style.left = `${x}px`
       pin.style.top = `${y}px`
       pin.hidden = false
@@ -130,16 +148,27 @@ export default class extends Controller {
       anchors: [ ...this.groups.values() ].map(({ key, selector, quote }) => ({ key, selector, quote }))
     })
 
-    // A frame that never answers must not make comments unreachable. An artifact
-    // written before the current hook shipped does not understand this message,
-    // and a hostile one could simply decline to reply about criticism of itself.
-    // Either way the pins show up detached rather than not at all.
     clearTimeout(this.anchorTimeout)
     if (!this.groups.size) return
 
-    this.anchorTimeout = setTimeout(() => {
-      this.place([ ...this.groups.keys() ].map((key) => ({ key, found: false })))
-    }, 1500)
+    this.attempts += 1
+    this.anchorTimeout = setTimeout(() => this.chase(), 1000)
+  }
+
+  // Nothing acknowledges an anchors message, so the pins are the receipt. The
+  // frame attaches its listener while its document parses, and this page can
+  // easily send before that — a lost message would otherwise leave the frame
+  // with no anchors at all, which nothing recovers from because it never asks.
+  // So: ask again while any pin is unplaced, and only then admit defeat and show
+  // them detached, which is what a pre-hook or a deliberately silent artifact
+  // deserves. Detached still opens its thread; invisible does not.
+  chase() {
+    const unplaced = [ ...this.groups.keys() ].filter((key) => !this.placed.has(key))
+    if (!unplaced.length) return
+
+    if (this.attempts < 3) return this.sendAnchors()
+
+    this.place(unplaced.map((key) => ({ key, found: false })))
   }
 
   toggle() {
@@ -198,7 +227,9 @@ export default class extends Controller {
 
     if (!response.ok) {
       const { error } = await response.json().catch(() => ({}))
-      this.errorTarget.textContent = error || `Could not save that comment (${response.status}).`
+      this.errorTarget.textContent = response.status === 401
+        ? "This artifact is locked. Reload the page and enter the PIN again."
+        : error || `Could not save that comment (${response.status}).`
       this.errorTarget.hidden = false
       return
     }

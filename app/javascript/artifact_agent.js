@@ -55,8 +55,33 @@
     return norm(anchor.quote).slice(0, 60);
   }
 
+  // textContent happily returns the source of a <script>, and an artifact whose
+  // script builds the page contains the very text the reader quoted from it —
+  // so a quote search over textContent finds the script tag, or <body> through
+  // it. Neither is where the reader pointed, and a <script> has no box at all.
+  var UNRENDERED = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, TITLE: 1 };
+
+  function renderedText(el) {
+    var out = "";
+    for (var i = 0; i < el.childNodes.length; i++) {
+      var node = el.childNodes[i];
+      if (node.nodeType === 3) out += node.nodeValue;
+      else if (node.nodeType === 1 && !UNRENDERED[node.nodeName]) out += renderedText(node);
+    }
+    return out;
+  }
+
   function says(el, needle) {
-    return !needle || norm(el.textContent).indexOf(needle) !== -1;
+    return !needle || norm(renderedText(el)).indexOf(needle) !== -1;
+  }
+
+  // An anchor is only really placed if it points at something with a box: a
+  // resolve that landed on an invisible element has to stay retryable.
+  function anchored(anchor) {
+    if (!anchor.el || !anchor.el.isConnected) return false;
+
+    var rect = anchor.el.getBoundingClientRect();
+    return rect.width > 0 || rect.height > 0;
   }
 
   // A PUT replaces the whole body, so an nth-of-type chain written against the
@@ -68,7 +93,8 @@
     var all = document.body ? document.body.querySelectorAll("*") : [];
     var found = null;
     for (var i = 0; i < all.length; i++) {
-      if (norm(all[i].textContent).indexOf(needle) !== -1) found = all[i];
+      if (UNRENDERED[all[i].nodeName]) continue;
+      if (norm(renderedText(all[i])).indexOf(needle) !== -1) found = all[i];
     }
     return found;
   }
@@ -105,7 +131,7 @@
 
   function resolveAll(onlyMissing) {
     for (var i = 0; i < anchors.length; i++) {
-      if (!onlyMissing || !anchors[i].el) resolve(anchors[i]);
+      if (!onlyMissing || !anchored(anchors[i])) resolve(anchors[i]);
     }
   }
 
@@ -135,6 +161,30 @@
       });
     }
     send({ type: "artifacto:positions", positions: positions });
+  }
+
+  var retryTimer = null;
+
+  // An anchor that resolved to nothing has no element, so the isConnected check
+  // in report() can never bring it back. Content that shows up later — a script
+  // that renders after load, a tab panel swapped back in — is a DOM mutation, so
+  // that is what schedules the retry. Throttled, and skipped outright once every
+  // anchor has an element, so a chatty artifact cannot drag the scan back into
+  // the hot path.
+  function scheduleRetry() {
+    if (retryTimer) return;
+
+    var missing = false;
+    for (var i = 0; i < anchors.length; i++) {
+      if (!anchored(anchors[i])) { missing = true; break; }
+    }
+    if (!missing) return;
+
+    retryTimer = window.setTimeout(function () {
+      retryTimer = null;
+      resolveAll(true);
+      report();
+    }, 500);
   }
 
   var pending = false;
@@ -168,11 +218,22 @@
   window.addEventListener("resize", scheduleReport);
 
   // Content that only exists once images and deferred scripts have run can turn
-  // a missed anchor into a hit. Worth exactly one retry, for the missed ones.
+  // a missed anchor into a hit.
   window.addEventListener("load", function () {
     if (!anchors.length) return;
     resolveAll(true);
     report();
   });
+
+  // A mutation can do two things to an anchor: turn a miss into a hit (content
+  // that renders late), and move one that was already placed. Both need an
+  // answer, and both are throttled — the retry to 500ms, the re-measure to a
+  // frame — so an artifact that animates its own DOM costs no more than a scroll.
+  if (window.MutationObserver) {
+    new MutationObserver(function () {
+      scheduleRetry();
+      scheduleReport();
+    }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  }
   send({ type: "artifacto:ready" });
 })();
