@@ -100,7 +100,7 @@ module Api
         def payload(artifact, edit_token: nil)
           {
             slug: artifact.slug,
-            url: "#{Rails.configuration.x.app_origin}/a/#{artifact.slug}",
+            url: "#{Rails.configuration.x.app_origin || request.base_url}/a/#{artifact.slug}",
             raw_url: content_url_for(artifact),
             title: artifact.title,
             format: artifact.format,

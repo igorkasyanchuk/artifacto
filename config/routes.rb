@@ -1,11 +1,18 @@
 Rails.application.routes.draw do
-  content_host = Regexp.new('\A[a-z0-9]{%d}\.%s\z' % [ Artifact::SLUG_LENGTH, Regexp.escape(Rails.configuration.x.content_host) ])
+  if (content_host = Rails.configuration.x.content_host)
+    pattern = Regexp.new('\A[a-z0-9]{%d}\.%s\z' % [ Artifact::SLUG_LENGTH, Regexp.escape(content_host) ])
 
-  # Untrusted zone: one artifact per subdomain, nothing else answers here.
-  constraints(host: content_host) do
-    root to: "raw#show", as: :raw_artifact
-    get "/robots.txt", to: "raw#robots", as: :raw_robots
-    match "*path", to: "raw#not_found", via: :all
+    # Untrusted zone: one artifact per subdomain, nothing else answers here.
+    constraints(host: pattern) do
+      root to: "raw#show", as: :raw_artifact
+      get "/robots.txt", to: "raw#robots", as: :raw_robots
+      match "*path", to: "raw#not_found", via: :all
+    end
+  else
+    # Single-origin mode. Only registered when there is no content zone to send
+    # artifacts to — otherwise this would serve them on the app's own origin,
+    # which is the exact thing the two-zone split exists to prevent.
+    get "/raw/:slug", to: "raw#show", as: :raw_artifact
   end
 
   # Everything else is the app zone. Deliberately unconstrained by host so the

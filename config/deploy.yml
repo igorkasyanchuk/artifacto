@@ -50,6 +50,7 @@ env:
     - AR_ENCRYPTION_DETERMINISTIC_KEY
     - AR_ENCRYPTION_SALT
   clear:
+    # Both unset would run single-origin mode; this box is the two-zone layout.
     APP_ORIGIN: https://artifacto.app
     CONTENT_HOST: artifactousercontent.com
     MAX_UPLOAD_BYTES: 5242880

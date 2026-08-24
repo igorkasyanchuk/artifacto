@@ -8,9 +8,10 @@ class PurgeCdnCacheJob < ApplicationJob
   def perform(slug)
     zone = ENV["CF_ZONE_ID"].presence
     token = ENV["CF_API_TOKEN"].presence
-    return if zone.nil? || token.nil?
+    content_host = Rails.configuration.x.content_host
+    return if zone.nil? || token.nil? || content_host.nil?
 
-    url = "https://#{slug}.#{Rails.configuration.x.content_host}/"
+    url = "https://#{slug}.#{content_host}/"
     uri = URI("https://api.cloudflare.com/client/v4/zones/#{zone}/purge_cache")
 
     response = Net::HTTP.post(uri, { files: [ url ] }.to_json,

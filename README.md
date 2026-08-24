@@ -9,7 +9,7 @@ or anything else that can run `curl` to publish and then update the same link.
 ## Why two domains
 
 Artifacto hosts **arbitrary third-party HTML with JavaScript**, uploaded by anyone.
-Isolation is the architecture, not a setting:
+Isolation is the architecture. Set `CONTENT_HOST` and you get it:
 
 | Zone | Serves | Notes |
 |---|---|---|
@@ -26,6 +26,26 @@ somebody's phishing page, and you do not want your brand in that blocklist.
 Each artifact gets its own subdomain, so no two artifacts share `localStorage`,
 `sessionStorage` or `IndexedDB`.
 
+### Single-origin mode
+
+Leave `CONTENT_HOST` unset and there is no second domain: artifacts are served
+from `/raw/<slug>` on whatever host the request arrived on. One domain, no DNS
+work, nothing to configure — and no origin boundary either.
+
+To make up for it, `RawController` drops `allow-same-origin` from the sandbox in
+this mode, which gives every artifact an opaque origin. That restores most of
+what the second domain was doing: an artifact still cannot read the app's
+storage, and no two artifacts share any. The costs are real, though:
+
+- `localStorage`, `sessionStorage` and `IndexedDB` stop working inside artifacts.
+- The app's own origin now serves attacker-supplied HTML, so anything reported
+  for phishing is reported against your domain, not an unbranded one.
+- The postMessage channel targets `*` instead of a named origin, because an
+  opaque origin cannot name itself.
+
+Fine for a staging box or a first deploy on a throwaway hostname. Set
+`CONTENT_HOST` before it matters.
+
 Artifacts are served under a policy that blocks `fetch`, form submission, top-level
 navigation, popups, downloads and every external resource. An artifact cannot link
 out at all — it is a closed page. `allow_network=true` opens `connect-src` for one
@@ -37,16 +57,23 @@ gets a much stricter policy.
 
 ## Local development
 
-Artifact subdomains default to `*.usercontent.localhost`, which browsers resolve
-to 127.0.0.1 with no `/etc/hosts` editing. The app is on plain `localhost`.
-
 ```bash
 bin/setup
 bin/rails server -p 3000
 ```
 
-Then open <http://localhost:3000>. Artifacts appear at
-`http://<slug>.usercontent.localhost:3000/`.
+Then open <http://localhost:3000>. With nothing configured this runs in
+single-origin mode and artifacts appear at `http://localhost:3000/raw/<slug>`.
+
+To develop against the two-zone layout instead, set `CONTENT_HOST` to a
+`*.localhost` name — browsers resolve those to 127.0.0.1 with no `/etc/hosts`
+editing:
+
+```bash
+CONTENT_HOST=usercontent.localhost APP_ORIGIN=http://localhost:3000 bin/rails server -p 3000
+```
+
+Artifacts then appear at `http://<slug>.usercontent.localhost:3000/`.
 
 If port 3000 is taken, pass the port in both places so generated URLs match:
 
@@ -62,32 +89,73 @@ bin/rails test
 
 ## Configuration
 
-| Variable | Default | Purpose |
+There are no encrypted credentials. Every secret is an environment variable, and
+the app reads nothing from disk that is not in git.
+
+**Required in production**
+
+| Variable | Example | Purpose |
 |---|---|---|
-| `APP_ORIGIN` | `http://localhost:$PORT` | Origin used in `frame-ancestors` and in returned URLs. **Required in production** |
-| `CONTENT_HOST` | `usercontent.localhost` | Parent domain for artifact subdomains |
-| `SECRET_KEY_BASE` | — | **Required in production.** There are no encrypted credentials; every secret is an env var |
-| `DATABASE_URL` | — | Merged over `config/database.yml` when set |
-| `REDIS_URL` | `redis://localhost:6379/0` | Sidekiq queue and cron |
-| `SIDEKIQ_IN_PUMA` | unset | Run Sidekiq inside Puma. Single-process Puma only |
-| `SIDEKIQ_CONCURRENCY` | `3` | Sidekiq threads; counted into the Active Record pool |
-| `MAX_UPLOAD_BYTES` | `5242880` | Hard upload limit |
-| `DEFAULT_TTL_DAYS` | `14` | Default lifetime, 1–30 allowed |
-| `IP_HASH_SECRET` | `dev-secret` | HMAC key for `creator_ip_hash`; rotating it orphans existing bans |
-| `ADMIN_USER` / `ADMIN_PASSWORD` | `admin` / `change-me` | HTTP Basic for `/admin` |
-| `CF_ZONE_ID` / `CF_API_TOKEN` | — | Purge the CDN on update; the purge job no-ops without them |
+| `SECRET_KEY_BASE` | `4f8a1c...` (128 hex chars, from `bin/rails secret`) | Signs cookies and the PIN tokens |
+| `AR_ENCRYPTION_PRIMARY_KEY` | `9d3b7e...` (32+ chars, from `bin/rails secret`) | Encrypts `artifacts.creator_ip` at rest |
+| `AR_ENCRYPTION_DETERMINISTIC_KEY` | `2a5f10...` (32+ chars, a *different* `bin/rails secret`) | Deterministic encryption key |
+| `AR_ENCRYPTION_SALT` | `c710b4...` (32+ chars, a *third* `bin/rails secret`) | Key derivation salt |
+| `DATABASE_URL` | `postgres://artifacto:s3cret@artifacto-db:5432/artifacto_production` | Merged over `config/database.yml`. Use the `DB_*` vars below instead if you prefer |
+| `REDIS_URL` | `redis://artifacto-redis:6379/0` | Sidekiq queue and cron |
+
+Boot fails loudly if any of the `AR_ENCRYPTION_*` keys are missing, so a
+misconfigured deploy never quietly writes unencrypted IPs.
+
+**Zones**
+
+| Variable | Default | Example | Purpose |
+|---|---|---|---|
+| `CONTENT_HOST` | unset → single-origin mode | `artifactousercontent.com` | Parent domain for artifact subdomains. Must be a different registrable domain from the app |
+| `APP_ORIGIN` | unset → taken from the request | `https://artifacto.app` | Origin used in `frame-ancestors` and the artifact's postMessage target. **Required when `CONTENT_HOST` is set**, ignored otherwise |
+
+**Runtime**
+
+| Variable | Default | Example | Purpose |
+|---|---|---|---|
+| `SIDEKIQ_IN_PUMA` | unset | `true` | Run Sidekiq inside Puma. Single-process Puma only — boot refuses it when `WEB_CONCURRENCY > 1` |
+| `SIDEKIQ_CONCURRENCY` | `3` | `5` | Sidekiq threads. Counted into the Active Record pool |
+| `RAILS_MAX_THREADS` | `3` | `5` | Puma threads. Also counted into the pool |
+| `WEB_CONCURRENCY` | unset (single process) | `2` | Puma workers. Incompatible with `SIDEKIQ_IN_PUMA` |
+| `PORT` | `3000` | `3000` | Puma's port. Thruster fronts it on 80 in the image |
+| `RAILS_LOG_LEVEL` | `info` | `debug` | |
+
+**Application**
+
+| Variable | Default | Example | Purpose |
+|---|---|---|---|
+| `MAX_UPLOAD_BYTES` | `5242880` | `10485760` | Hard upload limit |
+| `DEFAULT_TTL_DAYS` | `14` | `14` | Default lifetime, 1–30 allowed |
+| `IP_HASH_SECRET` | `dev-secret` | `e91c44...` (from `bin/rails secret`) | HMAC key for `creator_ip_hash`. Rotating it orphans existing bans |
+| `ADMIN_USER` / `ADMIN_PASSWORD` | `admin` / `change-me` | `igor` / `a-long-random-string` | HTTP Basic for `/admin`. **Change both before exposing the app** |
+| `CF_ZONE_ID` / `CF_API_TOKEN` | — | `0a1b2c...` / `v1.0-...` | Purge the CDN on update. The job no-ops without them, and in single-origin mode |
+
+**Database, if you are not using `DATABASE_URL`**
+
+| Variable | Default | Example |
+|---|---|---|
+| `DB_HOST` | `localhost` | `artifacto-db` |
+| `DB_PORT` | `5432` | `5432` |
+| `DB_USER` | `artifacto` | `artifacto` |
+| `ARTIFACTO_DATABASE_PASSWORD` | — | `a-long-random-string` |
 
 ## Deploy
 
 Any Docker host works — the image reads everything from env vars, so there is no
-`master.key` to ship. Set at minimum `SECRET_KEY_BASE`, `APP_ORIGIN`,
-`CONTENT_HOST`, `DATABASE_URL` (or the `DB_*` vars), `REDIS_URL`,
-`SIDEKIQ_IN_PUMA=true` and the three `AR_ENCRYPTION_*` keys.
+`master.key` to ship. The smallest deploy that runs is single-origin mode:
+`SECRET_KEY_BASE`, the three `AR_ENCRYPTION_*` keys, `DATABASE_URL`, `REDIS_URL`
+and `SIDEKIQ_IN_PUMA=true`. No hostname is configured anywhere, so the app
+answers on whatever domain the platform gives it. Read **Single-origin mode**
+above before leaving it that way.
 
-Generate the secrets once:
+Generate the five secrets, one run each:
 
 ```bash
-bin/rails secret   # SECRET_KEY_BASE, AR_ENCRYPTION_*, IP_HASH_SECRET
+bin/rails secret
 ```
 
 `config/deploy.yml` still describes a Kamal deploy onto one small box: Postgres

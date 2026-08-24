@@ -3,6 +3,12 @@
 # your test database is "scratch space" for the test suite and is wiped
 # and recreated between test runs. Don't rely on the data there!
 
+# The isolation suite is written against two-zone mode, so the test environment
+# always has a content zone. Single-origin mode is covered by SingleOriginTest,
+# which clears this and redraws the routes.
+ENV["CONTENT_HOST"] ||= "usercontent.localhost"
+ENV["APP_ORIGIN"] ||= "http://localhost:3000"
+
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 

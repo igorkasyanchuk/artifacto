@@ -13,7 +13,7 @@ module AgentInjector
   class << self
     def script
       @script ||= Rails.root.join("app/javascript/artifact_agent.js").read
-        .sub("__PARENT_ORIGIN__", Rails.configuration.x.app_origin)
+        .sub("__PARENT_ORIGIN__", Rails.configuration.x.app_origin || "*")
     end
 
     # CSP source expression, so Markdown artifacts can run this script and

@@ -121,11 +121,20 @@ class Artifact < ApplicationRecord
 
   def etag = %("#{sha256[0, 16]}-#{AgentInjector::VERSION}")
 
-  def content_url(token: nil)
+  # `base` is the requesting origin, used only in single-origin mode. Nil there
+  # yields a root-relative URL, which is what the wrapper's iframe wants anyway.
+  def content_url(base: nil, token: nil)
     config = Rails.configuration.x
-    host = "#{slug}.#{config.content_host}"
-    host = "#{host}:#{config.content_port}" if config.content_port
-    url = "#{config.content_scheme}://#{host}/"
+
+    url =
+      if config.content_host
+        host = "#{slug}.#{config.content_host}"
+        host = "#{host}:#{config.content_port}" if config.content_port
+        "#{config.content_scheme}://#{host}/"
+      else
+        "#{base}/raw/#{slug}"
+      end
+
     token ? "#{url}?t=#{CGI.escape(token)}" : url
   end
 

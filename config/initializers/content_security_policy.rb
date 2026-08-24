@@ -3,7 +3,12 @@
 Rails.application.configure do
   config.content_security_policy do |policy|
     x = config.x
-    frame_source = "#{x.content_scheme}://*.#{x.content_host}#{x.content_port ? ":#{x.content_port}" : ''}"
+    frame_source =
+      if x.content_host
+        "#{x.content_scheme}://*.#{x.content_host}#{x.content_port ? ":#{x.content_port}" : ''}"
+      else
+        :self
+      end
 
     policy.default_src :self
     policy.script_src  :self

@@ -1,9 +1,10 @@
-# Serves the artifact itself, on <slug>.CONTENT_HOST. Everything here runs in a
-# zone that hosts foreign JavaScript, so it sets no cookies and answers nothing
-# but the artifact body.
+# Serves the artifact itself: from <slug>.CONTENT_HOST when there is a content
+# zone, from /raw/<slug> when there is not. Everything here runs in a zone that
+# hosts foreign JavaScript, so it sets no cookies and answers nothing but the
+# artifact body.
 class RawController < ActionController::Base
   def show
-    artifact = Artifact.find_by(slug: request.subdomains.first)
+    artifact = Artifact.find_by(slug: params[:slug] || request.subdomains.first)
     return head :not_found if artifact.nil?
     return head :gone if artifact.expired?
     return head :unavailable_for_legal_reasons if artifact.blocked?
@@ -49,6 +50,14 @@ class RawController < ActionController::Base
       # needs inline scripts to work at all; the origin boundary is what contains it.
       script = artifact.format == "markdown" ? AgentInjector.csp_hash : "'unsafe-inline' 'unsafe-eval'"
 
+      # In single-origin mode the artifact is served from the app's own origin, so
+      # allow-same-origin would hand uploaded JavaScript the app's storage and let
+      # every artifact read every other one. Withholding it forces an opaque
+      # origin instead, which is the isolation a second domain would have given.
+      # The cost is that storage APIs stop working inside artifacts.
+      sandbox = "sandbox allow-scripts allow-modals"
+      sandbox += " allow-same-origin" if Rails.configuration.x.content_host
+
       [
         "default-src 'none'",
         "script-src #{script}",
@@ -60,13 +69,13 @@ class RawController < ActionController::Base
         "connect-src #{artifact.allow_network? ? 'https:' : "'none'"}",
         "form-action 'none'",
         "base-uri 'none'",
-        "frame-ancestors 'self' #{Rails.configuration.x.app_origin}",
+        "frame-ancestors #{[ "'self'", Rails.configuration.x.app_origin ].compact.join(' ')}",
         # No allow-downloads: an artifact cannot hand the viewer a file.
         # No allow-popups: window.open would otherwise open an arbitrary external
         # page in a new tab, which is the one way left to redirect a viewer.
         # Both mean an artifact cannot link out at all — which is what
         # "self-contained" was supposed to mean anyway.
-        "sandbox allow-scripts allow-same-origin allow-modals"
+        sandbox
       ].join("; ")
     end
 
