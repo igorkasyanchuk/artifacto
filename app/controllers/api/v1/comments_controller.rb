@@ -5,6 +5,7 @@ module Api
     class CommentsController < ApplicationController
       include ArtifactApi
 
+      before_action :require_pin
       before_action :require_edit_token, only: :destroy
 
       rate_limit to: 20, within: 1.hour, only: :create, with: -> { too_many_requests }

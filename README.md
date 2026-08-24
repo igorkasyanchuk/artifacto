@@ -242,10 +242,30 @@ with `textContent`, so reader text can never become markup in either zone.
 
 **Re-anchoring.** A `PUT` replaces the artifact body, so the stored `nth-of-type`
 chain usually stops resolving the moment the agent updates the page. That is why
-the quote is stored next to it: when the selector misses, the artifact side looks
-for the deepest element still containing that text. Pins say which happened —
-blue resolved by selector, violet re-anchored on the quote, red could not be
-placed at all and parks in the top-left corner rather than disappearing.
+the quote is stored next to it. The quote also decides on the *happy* path: a
+selector that still resolves is not proof it resolves to the same thing — insert
+one paragraph and `body > p:nth-of-type(2)` points at different text — so the
+element it finds only counts if it still contains the quote. Otherwise the frame
+searches for the deepest element that does. Pins say which happened: blue
+resolved and still says the same thing, violet re-anchored on the quote, red
+could not be placed at all and parks in the top-left corner rather than
+disappearing. A frame that never answers gets the same red treatment after a
+moment, so a hostile artifact cannot hide criticism of itself by staying quiet.
+
+**A PIN covers the comments too.** A stored quote is up to 200 characters lifted
+straight out of the page, so the comment endpoints take the same short-lived
+signed token the content zone does — minted on the wrapper page once the PIN has
+been entered, and passed as `?t=`. The edit token outranks it: whoever published
+the artifact set the PIN, so `Authorization: Bearer` reads and deletes without
+one.
+
+**Changing the hook is a two-part change.** The script is spliced into the body at
+write time, so a stored row keeps whatever version it was written with. Bumping
+`AgentInjector::VERSION` therefore has to come with a backfill —
+`Artifact#refresh_agent_hook!` over existing rows, the way
+`db/migrate/*_refresh_agent_hook.rb` does. Skip it and old artifacts keep a hook
+the overlay cannot talk to, and a Markdown artifact is served a `csp_hash` that
+does not match its own inline script, which blocks the script outright.
 
 ### For the agent that wrote the artifact
 
@@ -270,6 +290,7 @@ holds the line instead:
   and 500 per artifact.
 - 2 000 characters, stored as text, rendered as text.
 - `author_ip_hash` on every row, the same HMAC used for artifacts.
+- A PIN-locked artifact needs its unlock token before comments can be read or written.
 - `/admin/comments` lists the most recent 200 and deletes any of them.
 
 **Comments and single-origin mode are a bad pair.** In single-origin mode your app

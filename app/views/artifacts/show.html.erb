@@ -1,5 +1,8 @@
 <% content_for :title, @artifact.title.presence || "Artifact" %>
-<div class="viewer" data-controller="wrapper" data-wrapper-slug-value="<%= @artifact.slug %>">
+<%# The unlock token is what proves the PIN was entered; the comments API takes
+    the same one the content zone does, so a locked artifact's comments stay locked. %>
+<div class="viewer" data-controller="wrapper" data-wrapper-slug-value="<%= @artifact.slug %>"
+     data-wrapper-token-value="<%= @unlock_token %>">
   <div class="bar">
     <strong><%= @artifact.title.presence || "Untitled artifact" %></strong>
     <span class="<%= @artifact.ttl_days <= 3 ? "warn" : "note" %>">

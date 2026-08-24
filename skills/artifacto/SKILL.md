@@ -104,7 +104,9 @@ curl -sf "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG/comment
 `quote` is the text the reader clicked on — use it to find the spot, not `selector`,
 which is a CSS path into the version of the page that was live when they commented.
 
-No token needed to read. When the user asks "any feedback yet?", this is the call.
+No token needed to read — unless the artifact has a PIN, in which case pass
+`-H "Authorization: Bearer $TOKEN"`, which outranks the PIN. When the user asks
+"any feedback yet?", this is the call.
 After acting on a comment, clear it so it does not come back next time:
 
 ```bash

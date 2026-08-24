@@ -7,7 +7,7 @@ import { Controller } from "@hotwired/stimulus"
 // never crosses back into the artifact.
 export default class extends Controller {
   static targets = ["frame", "overlay", "panel", "quote", "list", "body", "count", "toggle", "error"]
-  static values = { slug: String }
+  static values = { slug: String, token: String }
 
   connect() {
     this.pins = new Map()
@@ -18,11 +18,20 @@ export default class extends Controller {
     if (this.hasFrameTarget) this.load()
   }
 
-  disconnect() { window.removeEventListener("message", this.onMessage) }
+  disconnect() {
+    clearTimeout(this.anchorTimeout)
+    window.removeEventListener("message", this.onMessage)
+  }
 
   copy() { navigator.clipboard.writeText(window.location.href) }
 
-  get endpoint() { return `/api/v1/artifacts/${this.slugValue}/comments` }
+  // The token is only present on a PIN-locked artifact, and only after the PIN
+  // has been entered. It expires well before the page does, so a comment posted
+  // hours later fails with 401 rather than silently escaping the lock.
+  get endpoint() {
+    const base = `/api/v1/artifacts/${this.slugValue}/comments`
+    return this.tokenValue ? `${base}?t=${encodeURIComponent(this.tokenValue)}` : base
+  }
 
   async load() {
     const response = await fetch(this.endpoint, { headers: { Accept: "application/json" } })
@@ -65,15 +74,25 @@ export default class extends Controller {
   }
 
   place(positions) {
+    clearTimeout(this.anchorTimeout)
     let detached = 0
 
     for (const position of positions) {
       const pin = this.pins.get(position.key)
       if (!pin) continue
 
+      // An element scrolled entirely past the top or left edge takes its pin with
+      // it. Clamping those to the edge instead would leave a pin sitting on
+      // whatever happens to be visible there, claiming to mark it.
+      if (position.found && (position.y + position.height <= 0 || position.x + position.width <= 0)) {
+        pin.hidden = true
+        continue
+      }
+
       // An anchor whose element is gone parks in the corner instead of vanishing:
-      // the comment still exists and still has to be reachable.
-      // Nudged into the margin so the pin does not sit on top of the text it marks.
+      // the comment still exists and still has to be reachable. A found one is
+      // nudged into the margin so the pin does not cover the text it marks, and
+      // clamped only when its element straddles the edge.
       const x = position.found ? Math.max(0, position.x - 20) : 8 + detached * 28
       const y = position.found ? Math.max(0, position.y - 2) : 8
       if (!position.found) detached += 1
@@ -110,6 +129,17 @@ export default class extends Controller {
       type: "artifacto:anchors",
       anchors: [ ...this.groups.values() ].map(({ key, selector, quote }) => ({ key, selector, quote }))
     })
+
+    // A frame that never answers must not make comments unreachable. An artifact
+    // written before the current hook shipped does not understand this message,
+    // and a hostile one could simply decline to reply about criticism of itself.
+    // Either way the pins show up detached rather than not at all.
+    clearTimeout(this.anchorTimeout)
+    if (!this.groups.size) return
+
+    this.anchorTimeout = setTimeout(() => {
+      this.place([ ...this.groups.keys() ].map((key) => ({ key, found: false })))
+    }, 1500)
   }
 
   toggle() {

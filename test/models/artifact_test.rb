@@ -87,4 +87,41 @@ class ArtifactTest < ActiveSupport::TestCase
     assert_equal slug.downcase, slug
     assert_match(/\A[a-z0-9]+\z/, slug)
   end
+
+  test "an artifact still carrying an older hook is re-spliced with the current one" do
+    artifact = Artifact.create_from_source!(HTML)
+    stale = artifact.served_html.sub(AgentInjector::BLOCK,
+      "#{AgentInjector::OPEN_MARKER}<script>/* the hook as it shipped last release */</script>#{AgentInjector::CLOSE_MARKER}")
+    artifact.update_column(:content, Artifact.gzip(stale))
+
+    assert artifact.refresh_agent_hook!
+    artifact.reload
+
+    assert_includes artifact.served_html, AgentInjector.script
+    assert_equal HTML, artifact.source_html, "the uploaded source is untouched"
+    assert_equal Digest::SHA256.hexdigest(HTML), artifact.sha256
+  end
+
+  test "refreshing an artifact that already has the current hook changes nothing" do
+    artifact = Artifact.create_from_source!(HTML)
+
+    assert_not artifact.refresh_agent_hook!
+  end
+
+  test "a Markdown artifact's CSP hash matches the script it actually carries after a refresh" do
+    artifact = Artifact.create_from_source!("# hi\n\nsome text", format: "markdown")
+    stale = artifact.served_html.sub(AgentInjector::BLOCK,
+      "#{AgentInjector::OPEN_MARKER}<script>/* last release */</script>#{AgentInjector::CLOSE_MARKER}")
+    artifact.update_column(:content, Artifact.gzip(stale))
+
+    inline = ->(html) { html[%r{<script>(.*?)</script>}m, 1] }
+    hash_of = ->(script) { "'sha256-#{Base64.strict_encode64(Digest::SHA256.digest(script))}'" }
+
+    assert_not_equal AgentInjector.csp_hash, hash_of.call(inline.call(artifact.reload.served_html)),
+      "a stale Markdown body is served a hash that does not cover its own script"
+
+    artifact.refresh_agent_hook!
+
+    assert_equal AgentInjector.csp_hash, hash_of.call(inline.call(artifact.reload.served_html))
+  end
 end

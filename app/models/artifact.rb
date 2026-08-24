@@ -116,6 +116,21 @@ class Artifact < ApplicationRecord
   # What was uploaded, recovered from what we serve. Used by the integrity test.
   def source_html = AgentInjector.strip(served_html)
 
+  # Re-splices the current hook into an already-stored body. The uploaded source
+  # is untouched, so sha256 stays right; only the injected block changes.
+  #
+  # Bumping AgentInjector::VERSION without running this over existing rows leaves
+  # them serving the hook they were written with — which the wrapper's comment
+  # overlay cannot talk to, and which a markdown artifact's CSP hash no longer
+  # covers, so the browser blocks it outright. See the backfill migration.
+  def refresh_agent_hook!
+    refreshed = AgentInjector.inject(source_html)
+    return false if refreshed == served_html
+
+    update_columns(content: self.class.gzip(refreshed), updated_at: Time.current)
+    true
+  end
+
   def expired? = expires_at <= Time.current
   def blocked? = blocked_at.present?
   def pin? = pin_digest.present?

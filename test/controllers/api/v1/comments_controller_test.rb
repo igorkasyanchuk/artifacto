@@ -80,6 +80,43 @@ class Api::V1::CommentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "anchor me", comment.quote, "and the quote survives, which is what the frame re-anchors on"
   end
 
+  test "a PIN gates the comments too, since a quote is text out of the locked page" do
+    @artifact.update!(pin: "1234")
+
+    post "/api/v1/artifacts/#{@artifact.slug}/comments", params: { selector: "body > p", body: "leak" }
+    assert_response :unauthorized
+
+    get "/api/v1/artifacts/#{@artifact.slug}/comments"
+    assert_response :unauthorized
+
+    token = Rails.application.message_verifier(:artifact_pin).generate(@artifact.slug, expires_in: 10.minutes)
+    post "/api/v1/artifacts/#{@artifact.slug}/comments",
+         params: { selector: "body > p", quote: "anchor me", body: "allowed", t: token }
+    assert_response :created
+
+    get "/api/v1/artifacts/#{@artifact.slug}/comments", params: { t: token }
+    assert_response :success
+  end
+
+  test "the edit token outranks the PIN, so the publishing agent still reads its feedback" do
+    @artifact.comments.create!(selector: "body > p", quote: "anchor me", body: "needs a chart")
+    @artifact.update!(pin: "1234")
+
+    get "/api/v1/artifacts/#{@artifact.slug}/comments",
+        headers: { "Authorization" => "Bearer #{@token}" }
+    assert_response :success
+    assert_equal "needs a chart", response.parsed_body["comments"].sole["body"]
+  end
+
+  test "a comment id that does not exist answers in JSON, not an HTML error page" do
+    delete "/api/v1/artifacts/#{@artifact.slug}/comments/999999",
+           headers: { "Authorization" => "Bearer #{@token}" }
+
+    assert_response :not_found
+    assert_equal "application/json", response.media_type
+    assert_equal "not found", response.parsed_body["error"]
+  end
+
   test "comments go away with the artifact" do
     post_comment
     assert_difference "Comment.count", -1 do
