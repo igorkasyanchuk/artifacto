@@ -3,9 +3,9 @@
 Drop a self-contained HTML (or Markdown) file, get a public link. No account, no
 login. The link expires after 14 days.
 
-**Live instance:** <http://3tpf0xkbxuc4pgalpbgmctdi.187.77.103.66.sslip.io/> —
-a Coolify box on a throwaway hostname, running in single-origin mode over plain
-HTTP. Treat it as a staging deploy, not a place to put anything that matters.
+**Live instance:** <https://3tpf0xkbxuc4pgalpbgmctdi.187.77.103.66.sslip.io/> —
+a Coolify box on a throwaway hostname, running in single-origin mode. Treat it
+as a staging deploy, not a place to put anything that matters.
 
 Built for AI agents first: `skills/artifacto/SKILL.md` teaches Claude Code, Cursor
 or anything else that can run `curl` to publish and then update the same link.
@@ -171,13 +171,17 @@ bin/rails secret
 `config/deploy.yml` still describes a Kamal deploy onto one small box: Postgres
 and Valkey run as accessories next to the app, and Sidekiq runs inside Puma.
 
-**Set `FORCE_SSL=false` on any deploy served over plain HTTP.** It defaults to
-on, which pairs `assume_ssl` with `force_ssl`: Rails then believes every request
-already arrived over TLS, so it never redirects, but it does mark the session
-cookie `Secure`. A browser discards a `Secure` cookie from an `http://` origin,
-which empties the session, which fails CSRF verification — so every form on the
-site returns 422 while the pages themselves look fine. Turn it back on once the
-host has a certificate the browser trusts.
+**Give the app an `https://` domain before you trust any form on it.** In Coolify
+that is the scheme in the Domains field: with `http://` it only builds a port-80
+router, never requests a certificate, and Traefik answers 443 with
+`no available server`. Meanwhile `FORCE_SSL` defaults to on, which pairs
+`assume_ssl` with `force_ssl`, so Rails believes every request already arrived
+over TLS and marks the session cookie `Secure`. A browser discards a `Secure`
+cookie from an `http://` origin, which empties the session and fails CSRF
+verification — every form returns 422 while the pages themselves look fine.
+
+So: use `https://` and leave `FORCE_SSL` alone. Set `FORCE_SSL=false` only for a
+deploy that genuinely has no TLS in front of it, and expect no secure cookies.
 
 **Networking.** kamal-proxy takes every host that reaches it, because it has to
 answer for the app's own hostname and for every artifact subdomain. Let's Encrypt cannot issue
