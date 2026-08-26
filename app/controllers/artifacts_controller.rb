@@ -2,6 +2,11 @@
 # the comment overlay. It never renders artifact HTML itself — that always comes
 # from the content origin inside an iframe.
 class ArtifactsController < ApplicationController
+  # Its own layout: no Turbo, its own stylesheet, and nothing else this page does
+  # not need. Everything here renders next to a frame full of somebody else's
+  # JavaScript, so the surface on this origin stays as small as it can be.
+  layout "artifact"
+
   UNLOCK_WINDOW = 10.minutes
 
   before_action :load_artifact

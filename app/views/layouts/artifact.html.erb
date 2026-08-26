@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "Artifact" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%# Unlisted by design, and the framed artifact carries its own noindex. %>
+    <meta name="robots" content="noindex, nofollow">
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+
+    <%# Shared base, then the wrapper's own sheet. The landing page and /admin
+        never load artifact.css, and this page never loads Turbo. %>
+    <%= stylesheet_link_tag "application", "artifact" %>
+    <%= javascript_importmap_tags "artifact" %>
+  </head>
+
+  <body>
+    <%# show.html.erb renders its own flash inside the bar and sets :flash_handled;
+        the blocked / expired / missing pages do not, so they get it here. %>
+    <% if (notice || alert) && !content_for?(:flash_handled) %>
+      <p class="flash"><%= notice || alert %></p>
+    <% end %>
+    <%= yield %>
+  </body>
+</html>

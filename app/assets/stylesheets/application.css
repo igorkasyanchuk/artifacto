@@ -47,24 +47,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 table { border-collapse: collapse; width: 100%; font-size: .85rem; }
 th, td { border-bottom: 1px solid var(--line); padding: .4rem .5rem; text-align: left; }
 
-/* comment overlay */
-.stage { position: relative; flex: 1; min-height: 0; }
-.stage .frame { position: absolute; inset: 0; height: 100%; }
-.overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-/* Pins sit on top of an artifact whose background we do not control, so their
-   colours are fixed rather than themed: blue = the selector still resolves,
-   violet = re-anchored on the quote, red = the anchor is gone entirely. */
-.pin { position: absolute; pointer-events: auto; width: 1.5rem; height: 1.5rem; padding: 0;
-       border-radius: 2px 50% 50% 50%; background: #2563eb; border-color: #1d4ed8;
-       color: #fff; font-size: .75rem; line-height: 1; box-shadow: 0 1px 3px rgb(0 0 0 / .35); }
-.pin.is-moved { background: #7c3aed; border-color: #6d28d9; }
-.pin.is-detached { background: #b91c1c; border-color: #991b1b; }
-.thread { position: absolute; width: 18rem; max-height: 70%; overflow-y: auto; z-index: 2;
-          box-shadow: 0 6px 24px rgb(0 0 0 / .18); }
-.thread .comment { margin: 0 0 .5rem; font-size: .85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
-.thread textarea { font-size: .85rem; }
-.thread .check { margin-bottom: 0; }
-
 /* admin */
 .admin-nav { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
 .admin-nav .spacer { flex: 1; }

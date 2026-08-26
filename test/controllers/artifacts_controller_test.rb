@@ -7,6 +7,30 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
     @artifact = Artifact.create_from_source!(HTML, title: "Wrapped")
   end
 
+  test "the wrapper page runs its own layout, with no Turbo on it" do
+    get "/a/#{@artifact.slug}"
+
+    assert_response :success
+    # Its own entry point and stylesheet...
+    assert_match %r{artifact[-.][\w.-]*\.js}, response.body
+    assert_match %r{artifact[-.][\w.-]*\.css}, response.body
+    # ...and nothing that runs or fetches Turbo next to a frame of foreign
+    # JavaScript. The importmap manifest still names every pin — naming a module
+    # is not importing it — so the assertions are about the entry point and the
+    # preload list, which are what actually pull bytes.
+    assert_match %r{<script type="module"[^>]*>import "artifact"</script>}, response.body
+    assert_no_match %r{import "@hotwired/turbo-rails"}, response.body
+    assert_no_match %r{modulepreload[^>]*turbo}, response.body
+  end
+
+  test "the landing page still gets the full application layout" do
+    get "/"
+
+    assert_response :success
+    assert_match %r{application[-.][\w.-]*\.js}, response.body
+    assert_not_includes response.body, "artifact.css"
+  end
+
   test "the wrapper frames the content origin and never inlines the artifact" do
     get "/a/#{@artifact.slug}"
 
