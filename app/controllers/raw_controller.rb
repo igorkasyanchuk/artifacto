@@ -41,8 +41,21 @@ class RawController < ActionController::Base
       response.headers["Cross-Origin-Resource-Policy"] = "same-site"
       response.headers["Permissions-Policy"] =
         "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=()"
-      response.headers["Cache-Control"] =
-        artifact.pin? ? "private, no-store" : "public, max-age=300, stale-while-revalidate=60"
+      response.headers["Cache-Control"] = cache_control_for(artifact)
+    end
+
+    def cache_control_for(artifact)
+      return "private, no-store" if artifact.pin?
+
+      seconds = Artifact.cache_seconds
+      # max-age=0 rather than no-cache: Rails' own conditional-get handling
+      # normalises no-cache away here, and zero seconds already forces the
+      # revalidation we want — which the ETag then answers with a 304.
+      return "public, max-age=0" if seconds <= 0
+
+      # Capped at the freshness window: serving a stale copy for longer than the
+      # artifact was ever fresh would undo a deliberately short cache_seconds.
+      "public, max-age=#{seconds}, stale-while-revalidate=#{[ seconds, 60 ].min}"
     end
 
     def content_security_policy_for(artifact)

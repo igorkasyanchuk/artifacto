@@ -37,6 +37,12 @@ class Artifact < ApplicationRecord
   def self.max_bytes = ENV.fetch("MAX_UPLOAD_BYTES", 5.megabytes).to_i
   def self.default_ttl_days = ENV.fetch("DEFAULT_TTL_DAYS", 14).to_i
 
+  # How long a served artifact stays fresh in browsers and at the edge. A PUT keeps
+  # the URL, so every second here is a second a reader can still be looking at the
+  # previous version — lower it on an instance where updates need to land fast, at
+  # the cost of an origin hit per view. Zero disables caching entirely.
+  def self.cache_seconds = ENV.fetch("ARTIFACT_CACHE_SECONDS", 300).to_i
+
   # Lowercase only: the slug is part of a hostname and browsers normalise those to
   # lowercase, so a mixed-case slug would never resolve. 22 chars of [a-z0-9] is
   # still ~113 bits — this is what stands in for a login.

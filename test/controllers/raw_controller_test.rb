@@ -64,6 +64,25 @@ class RawControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "cache lifetime follows ARTIFACT_CACHE_SECONDS" do
+    get_artifact @artifact
+    assert_includes response.headers["Cache-Control"], "max-age=300"
+    assert_includes response.headers["Cache-Control"], "stale-while-revalidate=60"
+
+    with_cache_seconds("30") do
+      get_artifact @artifact
+      assert_includes response.headers["Cache-Control"], "max-age=30"
+      # Never stale for longer than it was fresh.
+      assert_includes response.headers["Cache-Control"], "stale-while-revalidate=30"
+    end
+
+    with_cache_seconds("0") do
+      get_artifact @artifact
+      assert_includes response.headers["Cache-Control"], "max-age=0"
+      assert_not_includes response.headers["Cache-Control"], "stale-while-revalidate"
+    end
+  end
+
   test "a pinned artifact needs a signed token, not a cookie" do
     @artifact.update!(pin: "1234")
 
@@ -103,5 +122,13 @@ class RawControllerTest < ActionDispatch::IntegrationTest
     def get_artifact(artifact, params: {}, headers: {})
       host! "#{artifact.slug}.#{Rails.configuration.x.content_host}"
       get "/", params: params, headers: headers
+    end
+
+    def with_cache_seconds(value)
+      previous = ENV["ARTIFACT_CACHE_SECONDS"]
+      ENV["ARTIFACT_CACHE_SECONDS"] = value
+      yield
+    ensure
+      ENV["ARTIFACT_CACHE_SECONDS"] = previous
     end
 end
