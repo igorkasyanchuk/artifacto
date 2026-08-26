@@ -22,6 +22,7 @@ Rails.application.routes.draw do
   root to: "pages#home"
   get "/robots.txt", to: "pages#robots", as: :app_robots
   get "/skill", to: "pages#skill", as: :skill
+  get "/manifest", to: "rails/pwa#manifest", as: :pwa_manifest, defaults: { format: :json }
 
   get  "/a/:slug",        to: "artifacts#show",         as: :artifact
   post "/a/:slug/unlock", to: "artifacts#unlock",       as: :unlock_artifact
