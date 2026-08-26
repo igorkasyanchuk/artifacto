@@ -347,6 +347,10 @@ faster than you will read the mail, so response time is an operational requireme
 There are none, deliberately. Artifacts live at most 30 days and the agent that
 produced one can produce it again.
 
+If that stops being true — accounts land in phase 3, and a dashboard people log
+into is a thing worth being able to restore — object storage is where the
+Postgres dumps would go: <https://secure.backblaze.com/b2_buckets.htm>.
+
 ## Not built yet
 
 - Accounts and a dashboard (`artifacts.user_id` is already there). Until then the

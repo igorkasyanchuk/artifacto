@@ -26,3 +26,6 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+
+# Agent worktrees: a full checkout of this repo, nested inside it.
+/.claude/worktrees/
