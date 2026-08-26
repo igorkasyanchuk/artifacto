@@ -1,0 +1,67 @@
+<% content_for :title, "Admin — Artifacto" %>
+<div class="wrap">
+  <h1>Admin</h1>
+  <%= render "admin/nav" %>
+
+  <h2>Artifacts</h2>
+  <div class="grid">
+    <%= render "admin/dashboard/tile", label: "Total", value: @stats.artifacts[:total] %>
+    <%= render "admin/dashboard/tile", label: "Live", value: @stats.artifacts[:live] %>
+    <%= render "admin/dashboard/tile", label: "Expired", value: @stats.artifacts[:expired] %>
+    <%= render "admin/dashboard/tile", label: "Blocked", value: @stats.artifacts[:blocked] %>
+    <%= render "admin/dashboard/tile", label: "Last 24h", value: @stats.artifacts[:today] %>
+    <%= render "admin/dashboard/tile", label: "Last 7 days", value: @stats.artifacts[:week] %>
+  </div>
+
+  <h2>New artifacts, last <%= Stats::DAYS %> days</h2>
+  <% peak = [ @stats.per_day.map(&:last).max, 1 ].max %>
+  <div class="spark panel">
+    <% @stats.per_day.each do |day, count| %>
+      <span class="bar" title="<%= day.strftime("%b %-d") %>: <%= count %>">
+        <span style="height: <%= (count * 100.0 / peak).round %>%"></span>
+      </span>
+    <% end %>
+  </div>
+  <p class="note">Peak <%= peak %>/day.</p>
+
+  <h2>Users</h2>
+  <div class="grid">
+    <%= render "admin/dashboard/tile", label: "Users", value: @stats.users[:total] %>
+    <%= render "admin/dashboard/tile", label: "Admins", value: @stats.users[:admins] %>
+    <%= render "admin/dashboard/tile", label: "New this week", value: @stats.users[:week] %>
+    <%= render "admin/dashboard/tile", label: "Have published", value: @stats.users[:with_artifacts] %>
+  </div>
+
+  <h2>Engagement &amp; moderation</h2>
+  <div class="grid">
+    <%= render "admin/dashboard/tile", label: "Views", value: @stats.engagement[:views] %>
+    <%= render "admin/dashboard/tile", label: "Comments", value: @stats.engagement[:comments] %>
+    <%= render "admin/dashboard/tile", label: "Comments, 7d", value: @stats.engagement[:comments_week] %>
+    <%= render "admin/dashboard/tile", label: "Pending reports", value: @stats.engagement[:pending_reports] %>
+    <%= render "admin/dashboard/tile", label: "Blocked hashes", value: @stats.engagement[:blocked_hashes] %>
+  </div>
+
+  <h2>Storage</h2>
+  <div class="grid">
+    <%= render "admin/dashboard/tile", label: "Stored", value: number_to_human_size(@stats.storage[:bytes]) %>
+    <%= render "admin/dashboard/tile", label: "Average", value: number_to_human_size(@stats.storage[:average]) %>
+    <%= render "admin/dashboard/tile", label: "Largest", value: number_to_human_size(@stats.storage[:largest]) %>
+    <% @stats.formats.each do |format, count| %>
+      <%= render "admin/dashboard/tile", label: format, value: count %>
+    <% end %>
+  </div>
+
+  <h2>Top creators</h2>
+  <% if @stats.top_creators.any? %>
+    <table>
+      <tr><th>User</th><th>Artifacts</th></tr>
+      <% User.where(id: @stats.top_creators.keys).index_by(&:id).then do |users| %>
+        <% @stats.top_creators.each do |user_id, count| %>
+          <tr><td><%= users[user_id]&.email %></td><td><%= count %></td></tr>
+        <% end %>
+      <% end %>
+    </table>
+  <% else %>
+    <p class="note">No artifacts have been claimed by a signed-in user yet.</p>
+  <% end %>
+</div>

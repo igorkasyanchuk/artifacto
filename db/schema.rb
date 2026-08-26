@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_24_210000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_26_203628) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -46,6 +46,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_210000) do
     t.index ["creator_ip_hash"], name: "index_artifacts_on_creator_ip_hash"
     t.index ["expires_at"], name: "index_artifacts_on_expires_at"
     t.index ["slug"], name: "index_artifacts_on_slug", unique: true
+    t.index ["user_id"], name: "index_artifacts_on_user_id"
   end
 
   create_table "blocked_hashes", force: :cascade do |t|
@@ -68,6 +69,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_210000) do
     t.index ["artifact_id"], name: "index_comments_on_artifact_id"
   end
 
+  create_table "users", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email", default: "", null: false
+    t.string "encrypted_password", default: "", null: false
+    t.datetime "remember_created_at"
+    t.string "role", default: "user", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_users_on_email", unique: true
+  end
+
   add_foreign_key "abuse_reports", "artifacts"
+  add_foreign_key "artifacts", "users", on_delete: :nullify
   add_foreign_key "comments", "artifacts"
 end

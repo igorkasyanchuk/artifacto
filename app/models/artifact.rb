@@ -17,6 +17,7 @@ class Artifact < ApplicationRecord
   SLUG_LENGTH = 22
   TTL_DAYS = (1..30)
 
+  belongs_to :user, optional: true
   has_many :abuse_reports, dependent: :delete_all
   has_many :comments, dependent: :delete_all
 

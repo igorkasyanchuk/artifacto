@@ -17,6 +17,8 @@ Rails.application.routes.draw do
 
   # Everything else is the app zone. Deliberately unconstrained by host so the
   # app works on whatever domain it is deployed under.
+  devise_for :users
+
   root to: "pages#home"
   get "/robots.txt", to: "pages#robots", as: :app_robots
   get "/skill", to: "pages#skill", as: :skill
@@ -26,6 +28,8 @@ Rails.application.routes.draw do
   post "/a/:slug/report", to: "abuse_reports#create",   as: :report_artifact
 
   namespace :admin do
+    root to: "dashboard#show"
+    resources :users, only: %i[index update]
     resources :artifacts, only: %i[index destroy], param: :slug do
       post :block, on: :member
     end

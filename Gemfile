@@ -66,3 +66,6 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
 end
+
+# Authentication for the admin area [https://github.com/heartcombo/devise]
+gem "devise", "~> 4.9"

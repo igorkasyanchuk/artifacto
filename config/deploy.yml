@@ -42,8 +42,7 @@ env:
     - SECRET_KEY_BASE
     - ARTIFACTO_DATABASE_PASSWORD
     - IP_HASH_SECRET        # HMAC key for creator_ip_hash; rotating it orphans existing bans
-    - ADMIN_USER
-    - ADMIN_PASSWORD
+    - ADMIN_PASSWORD       # only read by db:seed, to bootstrap the first admin
     - CF_ZONE_ID            # content zone, for purge-on-update
     - CF_API_TOKEN
     - AR_ENCRYPTION_PRIMARY_KEY        # encrypts artifacts.creator_ip

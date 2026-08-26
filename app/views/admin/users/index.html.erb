@@ -1,0 +1,27 @@
+<% content_for :title, "Users — Admin" %>
+<div class="wrap">
+  <h1>Users</h1>
+  <%= render "admin/nav" %>
+
+  <table>
+    <tr><th>Email</th><th>Role</th><th>Artifacts</th><th>Joined</th><th></th></tr>
+    <% @users.each do |user| %>
+      <tr>
+        <td><%= user.email %></td>
+        <td><%= user.role %></td>
+        <td><%= user.artifacts_count %></td>
+        <td><%= user.created_at.to_date %></td>
+        <td>
+          <% if user == current_user %>
+            <span class="note">you</span>
+          <% else %>
+            <%= button_to "Make #{user.admin? ? "user" : "admin"}",
+                          admin_user_path(user), method: :patch,
+                          params: { user: { role: user.admin? ? "user" : "admin" } },
+                          form: { class: "inline" } %>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+</div>

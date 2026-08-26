@@ -67,5 +67,10 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to "/a/#{@artifact.slug}"
+
+    # The viewer renders its own flash inside the .viewer column; the layout
+    # must not add a second copy above it.
+    follow_redirect!
+    assert_select ".flash", count: 1
   end
 end

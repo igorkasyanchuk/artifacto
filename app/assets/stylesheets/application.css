@@ -64,3 +64,20 @@ th, td { border-bottom: 1px solid var(--line); padding: .4rem .5rem; text-align:
 .thread .comment { margin: 0 0 .5rem; font-size: .85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .thread textarea { font-size: .85rem; }
 .thread .check { margin-bottom: 0; }
+
+/* admin */
+.admin-nav { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.admin-nav .spacer { flex: 1; }
+form.inline { display: inline; }
+form.inline button { padding: .2rem .5rem; font-size: .75rem; }
+.tile { display: flex; flex-direction: column-reverse; gap: .15rem; }
+.tile strong { font-size: 1.5rem; line-height: 1.2; }
+.tile label { margin: 0; }
+.spark { display: flex; align-items: flex-end; gap: .3rem; height: 6rem; }
+.spark .bar { flex: 1; display: flex; align-items: flex-end; height: 100%; }
+.spark .bar > span { width: 100%; min-height: 2px; background: var(--accent); border-radius: 2px 2px 0 0; }
+body.auth { max-width: 24rem; margin: 0 auto; padding: 3rem 1.25rem; }
+body.auth h2 { font-size: 1.5rem; }
+body.auth .field { margin-bottom: .75rem; }
+body.auth .actions { margin: 1rem 0; }
+.admin-nav-me { display: inline-flex; align-items: center; gap: .5rem; white-space: nowrap; }

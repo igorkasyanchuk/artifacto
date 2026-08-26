@@ -1,4 +1,5 @@
 <% content_for :title, @artifact.title.presence || "Artifact" %>
+<% content_for :flash_handled, true %>
 <%# The unlock token is what proves the PIN was entered; the comments API takes
     the same one the content zone does, so a locked artifact's comments stay locked. %>
 <div class="viewer" data-controller="wrapper" data-wrapper-slug-value="<%= @artifact.slug %>"

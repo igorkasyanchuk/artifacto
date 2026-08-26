@@ -1,8 +1,5 @@
 module Admin
-  class ArtifactsController < ApplicationController
-    http_basic_authenticate_with name: ENV.fetch("ADMIN_USER", "admin"),
-                                 password: ENV.fetch("ADMIN_PASSWORD", "change-me")
-
+  class ArtifactsController < BaseController
     def index
       @reported = Artifact.joins(:abuse_reports).merge(AbuseReport.pending).distinct.order(created_at: :desc)
       @recent = Artifact.order(created_at: :desc).limit(50)

@@ -1,0 +1,11 @@
+<div class="note admin-nav">
+  <%= link_to "Dashboard", admin_root_path %>
+  <%= link_to "Artifacts", admin_artifacts_path %>
+  <%= link_to "Comments", admin_comments_path %>
+  <%= link_to "Users", admin_users_path %>
+  <span class="spacer"></span>
+  <span class="admin-nav-me">
+    <%= current_user.email %>
+    <%= button_to "Sign out", destroy_user_session_path, method: :delete, form: { class: "inline" } %>
+  </span>
+</div>

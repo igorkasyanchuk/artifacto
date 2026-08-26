@@ -141,7 +141,7 @@ misconfigured deploy never quietly writes unencrypted IPs.
 | `MAX_UPLOAD_BYTES` | `5242880` | `10485760` | Hard upload limit |
 | `DEFAULT_TTL_DAYS` | `14` | `14` | Default lifetime, 1–30 allowed |
 | `IP_HASH_SECRET` | `dev-secret` | `e91c44...` (from `bin/rails secret`) | HMAC key for `creator_ip_hash`. Rotating it orphans existing bans |
-| `ADMIN_USER` / `ADMIN_PASSWORD` | `admin` / `change-me` | `igor` / `a-long-random-string` | HTTP Basic for `/admin`. **Change both before exposing the app** |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@example.com` / `password` in dev | `igor@example.com` / `a-long-random-string` | The admin `bin/rails db:seed` creates. Seeding sets the password every run, so it also recovers a lost one. In production an unset `ADMIN_PASSWORD` generates a random one and prints it |
 | `CF_ZONE_ID` / `CF_API_TOKEN` | — | `0a1b2c...` / `v1.0-...` | Purge the CDN on update. The job no-ops without them, and in single-origin mode |
 
 **Database, if you are not using `DATABASE_URL`**
@@ -283,6 +283,31 @@ curl -sf -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/api/v1/artifacts/$SL
 
 Reading needs nothing; deleting needs the edit token. `skills/artifacto/SKILL.md`
 documents both.
+
+### Admin area
+
+`/admin` is behind Devise now, not HTTP Basic. Users have one of two roles,
+`user` (the default) and `admin`, and only `admin` gets past
+`Admin::BaseController`. Everyone else is redirected to `/`.
+
+There is no public signup and no password reset: accounts exist only to gate
+`/admin`, so both would be unauthenticated, unrate-limited endpoints buying
+nothing. `/users/sign_in` is the only Devise route.
+
+- `bin/rails db:seed` creates `ADMIN_EMAIL`, or resets its password if the
+  address already has an account, and makes it an admin. `bin/docker-entrypoint`
+  runs it as part of `db:prepare` the first time the database is created.
+- Later accounts come from the console: `User.create!(email:, password:)`, then
+  promote from `/admin/users` if they need it.
+- `/admin` is a dashboard: artifact, user, engagement, moderation and storage counters,
+  plus a 14-day bar of new artifacts.
+- `/admin/users` lists every account with its artifact count and flips roles.
+  An admin cannot demote themselves, so the last one out cannot lock the door.
+- `/admin/artifacts` and `/admin/comments` are unchanged apart from the new auth.
+
+`artifacts.user_id` is wired to `users` but nothing sets it yet — uploads come in
+over the token API, so **Have published** and **Top creators** stay at zero until
+creation learns to attribute.
 
 ### Moderation
 

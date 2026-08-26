@@ -23,7 +23,10 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
+  <body class="<%= "auth" if devise_controller? %>">
+    <% if (notice || alert) && !content_for?(:flash_handled) %>
+      <p class="flash"><%= notice || alert %></p>
+    <% end %>
     <%= yield %>
   </body>
 </html>
