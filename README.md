@@ -12,8 +12,13 @@ or anything else that can run `curl` to publish and then update the same link.
 A running instance serves it at `/skill`, rewritten to point at that instance:
 
 ```bash
-curl -sfO https://your-app.example.com/skill -o .claude/skills/artifacto/SKILL.md
+mkdir -p .claude/skills/artifacto
+curl -fsS https://your-app.example.com/skill -o .claude/skills/artifacto/SKILL.md
 ```
+
+`-f` there so a failed fetch does not write an error page into the skill file. Every
+other call in the skill drops it, because the API explains its failures in the JSON
+body and `-f` throws that body away.
 
 ## Why two domains
 
@@ -140,6 +145,7 @@ misconfigured deploy never quietly writes unencrypted IPs.
 |---|---|---|---|
 | `MAX_UPLOAD_BYTES` | `5242880` | `10485760` | Hard upload limit |
 | `DEFAULT_TTL_DAYS` | `14` | `14` | Default lifetime, 1–30 allowed |
+| `ARTIFACT_CACHE_SECONDS` | `300` | `0` | How long a served artifact stays fresh in browsers and at the edge. A `PUT` keeps the URL, so this is also how long a reader can keep seeing the previous version after an update. `0` forces revalidation on every view, answered by the ETag with a 304 |
 | `IP_HASH_SECRET` | `dev-secret` | `e91c44...` (from `bin/rails secret`) | HMAC key for `creator_ip_hash`. Rotating it orphans existing bans |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@example.com` / `password` in dev | `igor@example.com` / `a-long-random-string` | The admin `bin/rails db:seed` creates. Seeding sets the password every run, so it also recovers a lost one. In production an unset `ADMIN_PASSWORD` generates a random one and prints it |
 | `CF_ZONE_ID` / `CF_API_TOKEN` | — | `0a1b2c...` / `v1.0-...` | Purge the CDN on update. The job no-ops without them, and in single-origin mode |
@@ -277,8 +283,8 @@ This is the loop the product exists for: publish, get read, get told what is wro
 fix it, `PUT` the same URL.
 
 ```bash
-curl -sf "$BASE/api/v1/artifacts/$SLUG/comments"
-curl -sf -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/api/v1/artifacts/$SLUG/comments/$ID"
+curl -sS "$BASE/api/v1/artifacts/$SLUG/comments"
+curl -sS -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/api/v1/artifacts/$SLUG/comments/$ID"
 ```
 
 Reading needs nothing; deleting needs the edit token. `skills/artifacto/SKILL.md`

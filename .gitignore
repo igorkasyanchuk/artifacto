@@ -29,3 +29,6 @@
 
 # Agent worktrees: a full checkout of this repo, nested inside it.
 /.claude/worktrees/
+
+# Artifacto edit tokens
+.artifacto/
