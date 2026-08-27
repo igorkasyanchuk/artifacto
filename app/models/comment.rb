@@ -7,6 +7,10 @@
 class Comment < ApplicationRecord
   MAX_BODY = 2_000
   MAX_QUOTE = 200
+  # Whatever the reader typed into the name box, kept because it makes a thread
+  # readable — never a claim about who they are. Optional by design: no account
+  # exists to check it against.
+  MAX_AUTHOR = 60
   MAX_SELECTOR = 500
   # Second guard behind the per-IP rate limit: one artifact cannot become free
   # storage. ponytail: a flat cap, not a quota — revisit if it ever bites.
@@ -17,6 +21,7 @@ class Comment < ApplicationRecord
   validates :body, presence: true, length: { maximum: MAX_BODY }
   validates :selector, presence: true, length: { maximum: MAX_SELECTOR }
   validates :quote, length: { maximum: MAX_QUOTE }
+  validates :author, length: { maximum: MAX_AUTHOR }
 
   scope :oldest_first, -> { order(:created_at, :id) }
 
@@ -25,6 +30,7 @@ class Comment < ApplicationRecord
       id: id,
       selector: selector,
       quote: quote,
+      author: author,
       body: body,
       created_at: created_at.utc.iso8601
     }

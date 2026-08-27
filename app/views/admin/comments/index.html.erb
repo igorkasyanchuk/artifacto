@@ -3,11 +3,12 @@
   <%= render "admin/nav" %>
 
   <table>
-    <tr><th>When</th><th>Artifact</th><th>Comment</th><th>IP hash</th><th></th></tr>
+    <tr><th>When</th><th>Artifact</th><th>Author</th><th>Comment</th><th>IP hash</th><th></th></tr>
     <% @comments.each do |comment| %>
       <tr>
         <td class="note"><%= comment.created_at.to_date %></td>
         <td><%= link_to comment.artifact.slug, artifact_path(comment.artifact.slug) %></td>
+        <td class="note"><%= comment.author %></td>
         <td><%= comment.body %></td>
         <td class="note"><%= comment.author_ip_hash&.first(12) %></td>
         <td><%= button_to "Delete", admin_comment_path(comment), method: :delete %></td>

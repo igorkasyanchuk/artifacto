@@ -229,7 +229,15 @@ Loader is on.
 
 Readers annotate an artifact in place: click **Comment** in the wrapper bar, click a
 spot in the page, type. A pin appears there and stacks into a thread on repeat
-visits. No account — whoever holds the link can comment.
+visits. **All comments** in the same bar opens a side panel listing every one of
+them — including the ones whose anchor no longer resolves — and deletes any of
+them against the artifact's edit token, which the panel asks for once and keeps
+in `localStorage`. No account — whoever holds the link can comment.
+
+The name box beside the comment body is optional and unverified: it is stored as
+`comments.author`, returned by the API, and remembered in `localStorage` so the
+same reader does not retype it on the next artifact. Nothing checks it, so it
+labels a thread and nothing more.
 
 The wrapper page and the artifact never share a document, so the whole feature
 runs over the `postMessage` channel opened by `app/javascript/artifact_agent.js`:

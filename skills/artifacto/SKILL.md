@@ -257,12 +257,16 @@ curl -sS "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG/comment
       "id": 12,
       "selector": "body > div:nth-of-type(2) > p",
       "quote": "Churn is the number that needs a chart here.",
+      "author": "Dana",
       "body": "Can we see this as a bar chart?",
       "created_at": "2026-08-24T16:39:19Z"
     }
   ]
 }
 ```
+
+`author` is the name the reader typed, and is `null` when they left the box
+empty — nothing verifies it, so read it as a label on a thread, not as identity.
 
 `quote` is the text the reader clicked on — use it to find the spot, not `selector`,
 which is a CSS path into the version of the page that was live when they commented.

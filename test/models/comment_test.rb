@@ -15,11 +15,18 @@ class CommentTest < ActiveSupport::TestCase
     comment.selector = "body"
     comment.quote = "x" * (Comment::MAX_QUOTE + 1)
     assert_not_predicate comment, :valid?
+
+    comment.quote = nil
+    comment.author = "x" * (Comment::MAX_AUTHOR + 1)
+    assert_not_predicate comment, :valid?
   end
 
   test "the JSON an agent reads back carries no reader identity" do
-    comment = @artifact.comments.create!(selector: "body", body: "fix the axis", author_ip_hash: "abc")
+    comment = @artifact.comments.create!(selector: "body", body: "fix the axis",
+                                         author: "Dana", author_ip_hash: "abc")
 
-    assert_equal %w[id selector quote body created_at], comment.as_json.keys.map(&:to_s)
+    # `author` is what the reader typed into a box, not who they are: it goes out,
+    # the IP hash never does.
+    assert_equal %w[id selector quote author body created_at], comment.as_json.keys.map(&:to_s)
   end
 end

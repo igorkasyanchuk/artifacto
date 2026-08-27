@@ -1,12 +1,29 @@
 import { Controller } from "@hotwired/stimulus"
 
+// The reader's name, not their identity: nothing checks it, and it is kept on
+// this browser so the same person does not retype it on every artifact.
+const AUTHOR_KEY = "artifacto:author"
+
+// Storage is a convenience here — a remembered name, a remembered edit token —
+// and every access to it throws outright where the browser has denied it. None
+// of that is worth taking the overlay down for, least of all in connect(), where
+// the throw would land before the message listener is attached and leave the
+// page with no comments at all.
+const recall = (key) => { try { return localStorage.getItem(key) } catch { return null } }
+const remember = (key, value) => {
+  try { value ? localStorage.setItem(key, value) : localStorage.removeItem(key) } catch { /* denied */ }
+}
+
 // Comment overlay: the app-origin half of the channel opened by artifact_agent.js.
 //
 // The frame resolves anchors and reports coordinates; every comment body lives
 // here and is written with textContent, so reader text never becomes markup and
 // never crosses back into the artifact.
 export default class extends Controller {
-  static targets = ["frame", "overlay", "panel", "quote", "list", "body", "count", "toggle", "error"]
+  static targets = [
+    "frame", "overlay", "panel", "quote", "list", "body", "author", "count", "toggle", "error",
+    "drawer", "entries"
+  ]
   static values = { slug: String, token: String }
 
   connect() {
@@ -14,6 +31,7 @@ export default class extends Controller {
     this.groups = new Map()
     this.placed = new Set()
     this.mode = false
+    if (this.hasAuthorTarget) this.authorTarget.value = recall(AUTHOR_KEY) || ""
     this.onMessage = this.onMessage.bind(this)
     window.addEventListener("message", this.onMessage)
     if (this.hasFrameTarget) this.load()
@@ -26,12 +44,29 @@ export default class extends Controller {
 
   copy() { navigator.clipboard.writeText(window.location.href) }
 
+  // <details> has no light dismiss of its own, so a menu left open keeps sitting
+  // over the artifact until the reader thinks to press ⋯ again.
+  dismissMenu(event) {
+    const menu = this.element.querySelector(".menu[open]")
+    if (!menu) return
+    if (event.target instanceof Node && menu.contains(event.target)) return
+
+    menu.open = false
+  }
+
   // The token is only present on a PIN-locked artifact, and only after the PIN
   // has been entered. It expires well before the page does, so a comment posted
   // hours later fails with 401 rather than silently escaping the lock.
-  get endpoint() {
-    const base = `/api/v1/artifacts/${this.slugValue}/comments`
+  url(suffix = "") {
+    const base = `/api/v1/artifacts/${this.slugValue}/comments${suffix}`
     return this.tokenValue ? `${base}?t=${encodeURIComponent(this.tokenValue)}` : base
+  }
+
+  get endpoint() { return this.url() }
+
+  note(text) {
+    this.countTarget.textContent = text
+    this.countTarget.hidden = !text
   }
 
   async load() {
@@ -41,7 +76,7 @@ export default class extends Controller {
       // A locked artifact whose unlock token has run out. Say so: the iframe
       // keeps rendering from cache, so nothing else on the page would hint that
       // this is a lapsed session rather than an artifact nobody has commented on.
-      if (response.status === 401) this.countTarget.textContent = "comments locked — reload to enter the PIN again"
+      if (response.status === 401) this.note("comments locked — reload to enter the PIN again")
       return
     }
 
@@ -59,8 +94,9 @@ export default class extends Controller {
       this.groups.set(comment.selector, group)
     }
 
-    this.countTarget.textContent = comments.length === 1 ? "1 comment" : `${comments.length} comments`
+    this.note(comments.length ? (comments.length === 1 ? "1 comment" : `${comments.length} comments`) : "")
     this.drawPins()
+    this.drawEntries()
     this.sendAnchors()
   }
 
@@ -183,17 +219,7 @@ export default class extends Controller {
     this.pending = { selector, quote }
     this.errorTarget.hidden = true
     this.quoteTarget.textContent = quote ? `“${quote.slice(0, 80)}”` : "this spot"
-
-    this.listTarget.replaceChildren(...comments.map((comment) => {
-      const item = document.createElement("p")
-      item.className = "comment"
-      item.textContent = comment.body
-      const when = document.createElement("span")
-      when.className = "note"
-      when.textContent = ` — ${new Date(comment.created_at).toLocaleDateString()}`
-      item.append(when)
-      return item
-    }))
+    this.listTarget.replaceChildren(...comments.map((comment) => this.commentNode(comment)))
 
     const box = this.overlayTarget.getBoundingClientRect()
     this.panelTarget.hidden = false
@@ -209,6 +235,24 @@ export default class extends Controller {
     this.bodyTarget.focus()
   }
 
+  // The drawer prints the byline on its own meta row, so it asks for the body alone.
+  commentNode(comment, byline = true) {
+    const item = document.createElement("p")
+    item.className = "comment"
+    item.textContent = comment.body
+    if (byline) {
+      const when = document.createElement("span")
+      when.className = "note"
+      when.textContent = ` — ${this.by(comment)}`
+      item.append(when)
+    }
+    return item
+  }
+
+  by(comment) {
+    return `${comment.author || "anonymous"}, ${new Date(comment.created_at).toLocaleDateString()}`
+  }
+
   close() {
     this.panelTarget.hidden = true
     this.pending = null
@@ -219,10 +263,13 @@ export default class extends Controller {
     const body = this.bodyTarget.value.trim()
     if (!body || !this.pending) return
 
+    const author = this.hasAuthorTarget ? this.authorTarget.value.trim() : ""
+    remember(AUTHOR_KEY, author)
+
     const response = await fetch(this.endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ ...this.pending, body })
+      body: JSON.stringify({ ...this.pending, body, author })
     })
 
     if (!response.ok) {
@@ -234,6 +281,92 @@ export default class extends Controller {
       return
     }
 
+    this.close()
+    this.load()
+  }
+
+  // Side panel: every comment on the artifact, including the ones whose anchor
+  // no longer resolves and whose pin is therefore parked in the corner.
+  drawer() {
+    this.drawerTarget.hidden = !this.drawerTarget.hidden
+  }
+
+  drawEntries() {
+    if (!this.hasEntriesTarget) return
+
+    const entries = [ ...this.groups.values() ]
+      .flatMap((group) => group.comments.map((comment) => this.entryNode(group, comment)))
+
+    if (!entries.length) {
+      const empty = document.createElement("p")
+      empty.className = "empty"
+      empty.textContent = "No comments yet. Click Comment, then click a spot in the page."
+      entries.push(empty)
+    }
+
+    this.entriesTarget.replaceChildren(...entries)
+  }
+
+  entryNode(group, comment) {
+    const entry = document.createElement("article")
+    entry.className = "entry"
+
+    // A real button, not just the clickable card below it: this is the only way
+    // to reach a thread whose pin has scrolled out of view, so it has to be
+    // reachable by keyboard too.
+    const quote = document.createElement("button")
+    quote.type = "button"
+    quote.className = "note quote"
+    quote.textContent = group.quote ? `“${group.quote.slice(0, 80)}”` : "this spot"
+    quote.addEventListener("click", (event) => { event.stopPropagation(); this.jump(group) })
+
+    const meta = document.createElement("p")
+    meta.className = "meta"
+    const who = document.createElement("span")
+    who.className = "note"
+    who.textContent = this.by(comment)
+    const spacer = document.createElement("span")
+    spacer.className = "spacer"
+    const remove = document.createElement("button")
+    remove.type = "button"
+    remove.textContent = "Delete"
+    remove.addEventListener("click", (event) => { event.stopPropagation(); this.destroy(comment) })
+    meta.append(who, spacer, remove)
+
+    entry.append(quote, this.commentNode(comment, false), meta)
+    entry.addEventListener("click", () => this.jump(group))
+    return entry
+  }
+
+  jump(group) {
+    const pin = this.pins.get(group.key)
+    this.openPanel({ ...group, x: pin?.offsetLeft ?? 8, y: pin?.offsetTop ?? 8 })
+  }
+
+  // ponytail: prompt() + localStorage, not a login. The edit token handed out at
+  // upload is the only owner proof this page can have — accounts do not own
+  // artifacts yet, so there is nothing else to check a delete against.
+  async destroy(comment) {
+    const key = `artifacto:token:${this.slugValue}`
+    const token = recall(key) ||
+      window.prompt("Paste this artifact's edit token to delete comments.\nIt was shown when the file was uploaded.")?.trim()
+    if (!token) return
+    if (!window.confirm("Delete this comment?")) return
+
+    const response = await fetch(this.url(`/${comment.id}`), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
+    })
+
+    if (response.status === 401) {
+      remember(key, null)
+      window.alert("That edit token was not accepted.")
+      return
+    }
+
+    if (!response.ok) return window.alert(`Could not delete that comment (${response.status}).`)
+
+    remember(key, token)
     this.close()
     this.load()
   }

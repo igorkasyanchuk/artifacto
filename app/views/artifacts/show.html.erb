@@ -2,28 +2,51 @@
 <% content_for :flash_handled, true %>
 <%# The unlock token is what proves the PIN was entered; the comments API takes
     the same one the content zone does, so a locked artifact's comments stay locked. %>
+<%# blur@window covers the click that lands in the iframe: those events never
+    reach this document, and the artifact is the likeliest place to click next. %>
 <div class="viewer" data-controller="wrapper" data-wrapper-slug-value="<%= @artifact.slug %>"
-     data-wrapper-token-value="<%= @unlock_token %>">
-  <div class="bar">
-    <strong><%= @artifact.title.presence || "Untitled artifact" %></strong>
-    <span class="<%= @artifact.ttl_days <= 3 ? "warn" : "note" %>">
-      expires in <%= pluralize(@artifact.ttl_days, "day") %>
+     data-wrapper-token-value="<%= @unlock_token %>"
+     data-action="click@document->wrapper#dismissMenu blur@window->wrapper#dismissMenu">
+  <header class="bar">
+    <%= image_tag "/icon.svg", class: "mark", alt: "", aria: { hidden: true } %>
+    <strong class="bar-title" title="<%= @artifact.title.presence || "Untitled artifact" %>">
+      <%= @artifact.title.presence || "Untitled artifact" %>
+    </strong>
+
+    <span class="chips">
+      <span class="chip <%= "is-warn" if @artifact.ttl_days <= 3 %>">
+        expires in <%= pluralize(@artifact.ttl_days, "day") %>
+      </span>
+      <span class="chip"><%= pluralize(@artifact.view_count, "view") %></span>
+      <span class="chip" hidden data-wrapper-target="count"></span>
+      <% if @artifact.allow_network? %>
+        <span class="chip is-warn">can make network requests</span>
+      <% end %>
     </span>
-    <span class="note"><%= pluralize(@artifact.view_count, "view") %></span>
-    <span class="note" data-wrapper-target="count"></span>
-    <% if @artifact.allow_network? %>
-      <span class="warn">can make network requests</span>
-    <% end %>
+
     <span class="spacer"></span>
-    <% unless @needs_pin %>
-      <button data-wrapper-target="toggle" data-action="wrapper#toggle">Comment</button>
-    <% end %>
-    <button data-action="wrapper#copy">Copy link</button>
-    <%= form_with url: report_artifact_path(@artifact.slug), method: :post, class: "check" do |form| %>
-      <%= form.select :reason, AbuseReport::REASONS.map { |r| [ r.capitalize, r ] } %>
-      <%= form.submit "Report" %>
-    <% end %>
-  </div>
+
+    <div class="actions">
+      <% unless @needs_pin %>
+        <button data-wrapper-target="toggle" data-action="wrapper#toggle">Comment</button>
+        <button data-action="wrapper#drawer">All comments</button>
+      <% end %>
+      <button data-action="wrapper#copy">Copy link</button>
+
+      <%# Report is a rare, deliberate action and a two-control form: it costs the
+          bar more room than it is worth open. A <details> is the whole disclosure. %>
+      <details class="menu">
+        <summary title="More">⋯</summary>
+        <div class="menu-body">
+          <%= form_with url: report_artifact_path(@artifact.slug), method: :post do |form| %>
+            <label for="reason">Report this artifact</label>
+            <%= form.select :reason, AbuseReport::REASONS.map { |r| [ r.capitalize, r ] } %>
+            <p class="stack"><%= form.submit "Report" %></p>
+          <% end %>
+        </div>
+      </details>
+    </div>
+  </header>
 
   <% if flash[:notice] || flash[:alert] %>
     <div class="flash"><%= flash[:notice] || flash[:alert] %></div>
@@ -54,6 +77,8 @@
       <form class="panel thread" hidden data-wrapper-target="panel" data-action="submit->wrapper#submit">
         <p class="note" data-wrapper-target="quote"></p>
         <div data-wrapper-target="list"></div>
+        <input type="text" placeholder="Your name (optional)" autocomplete="name"
+               maxlength="<%= Comment::MAX_AUTHOR %>" data-wrapper-target="author">
         <textarea rows="3" placeholder="Leave a comment" maxlength="<%= Comment::MAX_BODY %>"
                   data-wrapper-target="body"></textarea>
         <p class="warn" hidden data-wrapper-target="error"></p>
@@ -62,6 +87,18 @@
           <button type="button" data-action="wrapper#close">Cancel</button>
         </p>
       </form>
+
+      <%# Every comment on the artifact in one list, whether or not its anchor
+          still resolves. Deleting is the artifact owner's move, so it is the edit
+          token that authorises it — not this page. %>
+      <aside class="drawer" hidden aria-label="Comments" data-wrapper-target="drawer">
+        <header>
+          <strong>Comments</strong>
+          <span class="spacer"></span>
+          <button type="button" data-action="wrapper#drawer">Close</button>
+        </header>
+        <div class="entries" data-wrapper-target="entries"></div>
+      </aside>
     </div>
   <% end %>
 </div>

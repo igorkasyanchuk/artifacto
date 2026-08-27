@@ -25,6 +25,7 @@ module Api
           selector: params[:selector].to_s.truncate(Comment::MAX_SELECTOR),
           quote: params[:quote].to_s.truncate(Comment::MAX_QUOTE),
           body: params[:body].to_s.strip.truncate(Comment::MAX_BODY),
+          author: params[:author].to_s.strip.presence&.truncate(Comment::MAX_AUTHOR),
           author_ip_hash: client_ip_hash
         )
 

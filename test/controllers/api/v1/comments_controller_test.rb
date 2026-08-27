@@ -28,6 +28,19 @@ class Api::V1::CommentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "anchor me", comment["quote"]
   end
 
+  test "an author name is optional, kept when given and truncated when long" do
+    post_comment
+    assert_nil Comment.sole.author
+    assert_nil response.parsed_body["author"]
+
+    post_comment(author: "  Dana  ")
+    assert_equal "Dana", Comment.order(:id).last.author
+
+    post_comment(author: "x" * (Comment::MAX_AUTHOR + 50))
+    assert_response :created
+    assert_equal Comment::MAX_AUTHOR, Comment.order(:id).last.author.length
+  end
+
   test "the IP is only ever stored hashed" do
     post_comment
     assert_equal Artifact.hash_ip("127.0.0.1"), Comment.sole.author_ip_hash
