@@ -38,10 +38,18 @@
     event.preventDefault();
     event.stopPropagation();
     var el = event.target;
+    // Where in the element the click landed, as a fraction of its box. The
+    // selector alone only ever points at a top-left corner, which is the wrong
+    // place for anything big — click the middle of a page and the anchor is
+    // <body>, whose corner is the corner of the page. Stored as a fraction, not
+    // pixels, so it still means the same spot at another window width.
+    var rect = el.getBoundingClientRect();
     send({
       type: "artifacto:anchor",
       selector: cssPath(el),
       quote: (el.textContent || "").trim().slice(0, 200),
+      fx: rect.width ? (event.clientX - rect.left) / rect.width : 0,
+      fy: rect.height ? (event.clientY - rect.top) / rect.height : 0,
       x: event.clientX,
       y: event.clientY
     });
@@ -198,6 +206,17 @@
     });
   }
 
+  // A speech bubble, because a crosshair says "precision" and this is a comment.
+  // Fixed colours and a white outline for the same reason the pins have them: the
+  // artifact's own background is not ours to know. Percent-encoded whole, so the
+  // url() needs no quotes and this stays one plain string. Hotspot is the tail
+  // tip, which is the point the click actually lands on. crosshair is the
+  // fallback for a browser that refuses the image.
+  var COMMENT_CURSOR = "url(data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27" +
+    "%20width=%2728%27%20height=%2728%27%3E%3Cpath%20d=%27M3%203h22v16H14l-6%206v-6H3z%27" +
+    "%20fill=%27%232563eb%27%20stroke=%27white%27%20stroke-width=%272%27" +
+    "%20stroke-linejoin=%27round%27/%3E%3C/svg%3E) 8 25, crosshair";
+
   window.addEventListener("message", function (event) {
     if (event.source !== window.parent) return;
     var data = event.data;
@@ -205,7 +224,7 @@
 
     if (data.type === "artifacto:mode") {
       commentMode = !!data.comment;
-      document.documentElement.style.cursor = commentMode ? "crosshair" : "";
+      document.documentElement.style.cursor = commentMode ? COMMENT_CURSOR : "";
     } else if (data.type === "artifacto:anchors") {
       anchors = Array.isArray(data.anchors) ? data.anchors : [];
       resolveAll(false);

@@ -24,6 +24,7 @@
 /* top bar — scoped to the wrapper's own bar, because /admin's sparkline reuses
    the .bar class for something entirely different. It sits above the drawer:
    the report menu drops out of the bar and would otherwise open behind it. */
+.viewer { position: relative; }
 .viewer > .bar { gap: .5rem; padding: .5rem .75rem; position: relative; z-index: 6;
                  box-shadow: 0 1px 2px rgb(0 0 0 / .06); }
 .bar .mark { width: 1.25rem; height: 1.25rem; flex: none; }
@@ -50,7 +51,21 @@
 .stage { position: relative; flex: 1; min-height: 0; }
 .stage .frame { position: absolute; inset: 0; height: 100%; }
 .overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.overlay[hidden] { display: none; }
 .thread input, .thread textarea { margin-bottom: .4rem; }
+
+/* One toast, bottom centre: out from under the bar, out of the top-left corner
+   where detached pins park, and where a "copied" message is looked for anyway.
+   Anchored to .viewer rather than .stage because the locked page has no stage
+   and still has a Copy link button. */
+.toast { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 7;
+         max-width: min(28rem, calc(100% - 2rem)); margin: 0; padding: .6rem .9rem;
+         pointer-events: none; background: var(--panel); border: 1px solid var(--line);
+         border-radius: 8px; box-shadow: 0 6px 24px rgb(0 0 0 / .18);
+         font-size: .85rem; text-align: center; }
+/* Emptied rather than hidden, so the live region never leaves the accessibility
+   tree. opacity, not display or visibility, for the same reason. */
+.toast:empty { opacity: 0; }
 
 /* Side panel: every comment at once, anchored or not. */
 .drawer { position: absolute; inset: 0 0 0 auto; width: 22rem; max-width: 100%; z-index: 4;

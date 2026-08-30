@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_27_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_28_100001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -58,6 +58,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_100000) do
   end
 
   create_table "comments", force: :cascade do |t|
+    t.float "anchor_x"
+    t.float "anchor_y"
     t.bigint "artifact_id", null: false
     t.string "author"
     t.string "author_ip_hash"

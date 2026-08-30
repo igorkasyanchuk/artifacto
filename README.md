@@ -229,7 +229,8 @@ Loader is on.
 
 Readers annotate an artifact in place: click **Comment** in the wrapper bar, click a
 spot in the page, type. A pin appears there and stacks into a thread on repeat
-visits. **All comments** in the same bar opens a side panel listing every one of
+visits. **Hide pins** takes the whole overlay off the page for as long as the tab
+stays open, so the artifact can be read without them. **All comments** in the same bar opens a side panel listing every one of
 them — including the ones whose anchor no longer resolves — and deletes any of
 them against the artifact's edit token, which the panel asks for once and keeps
 in `localStorage`. No account — whoever holds the link can comment.
@@ -245,7 +246,7 @@ runs over the `postMessage` channel opened by `app/javascript/artifact_agent.js`
 | Direction | Message | Payload |
 |---|---|---|
 | artifact → app | `artifacto:ready` | — |
-| artifact → app | `artifacto:anchor` | the clicked element's selector, a text quote, click coordinates |
+| artifact → app | `artifacto:anchor` | the clicked element's selector, a text quote, the click's position inside that element, click coordinates |
 | artifact → app | `artifacto:positions` | where each anchor currently sits, re-sent on scroll and resize |
 | app → artifact | `artifacto:mode` | comment mode on/off |
 | app → artifact | `artifacto:anchors` | the selectors and quotes to resolve |
@@ -253,6 +254,14 @@ runs over the `postMessage` channel opened by `app/javascript/artifact_agent.js`
 **Comment bodies never cross into the artifact.** The frame is asked where things
 are and nothing else; every body is fetched, stored and rendered on the app origin,
 with `textContent`, so reader text can never become markup in either zone.
+
+**The pin goes back where the click was.** A selector on its own only ever names an
+element, and an element only has a corner — click the middle of a page and the
+anchor is `<body>`, whose corner is the corner of the page. So the frame also
+reports where in the element's box the click landed, as a fraction of it, and
+`comments.anchor_x` / `anchor_y` store that. A fraction rather than pixels, so the
+same spot survives a change of window width. Comments written before this are
+`null` and still pin to the corner.
 
 **Re-anchoring.** A `PUT` replaces the artifact body, so the stored `nth-of-type`
 chain usually stops resolving the moment the agent updates the page. That is why

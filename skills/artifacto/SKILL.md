@@ -257,6 +257,8 @@ curl -sS "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG/comment
       "id": 12,
       "selector": "body > div:nth-of-type(2) > p",
       "quote": "Churn is the number that needs a chart here.",
+      "anchor_x": 0.42,
+      "anchor_y": 0.18,
       "author": "Dana",
       "body": "Can we see this as a bar chart?",
       "created_at": "2026-08-24T16:39:19Z"
@@ -264,6 +266,11 @@ curl -sS "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG/comment
   ]
 }
 ```
+
+`anchor_x` and `anchor_y` are where inside that element the reader clicked, as a
+fraction of its box. They exist so the overlay can draw the pin back on the spot
+rather than on the element's corner, and are `null` on comments left before the
+overlay recorded them — nothing outside the wrapper needs them.
 
 `author` is the name the reader typed, and is `null` when they left the box
 empty — nothing verifies it, so read it as a label on a thread, not as identity.

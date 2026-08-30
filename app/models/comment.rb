@@ -25,11 +25,22 @@ class Comment < ApplicationRecord
 
   scope :oldest_first, -> { order(:created_at, :id) }
 
+  # Fractions of the anchor element's box, so they survive a change of window
+  # width. Out-of-range values are the frame's word against ours: clamp rather
+  # than reject, since a pin in the wrong place beats a comment refused.
+  def self.fraction(value)
+    return nil if value.blank?
+
+    Float(value, exception: false)&.clamp(0.0, 1.0)
+  end
+
   def as_json(*)
     {
       id: id,
       selector: selector,
       quote: quote,
+      anchor_x: anchor_x,
+      anchor_y: anchor_y,
       author: author,
       body: body,
       created_at: created_at.utc.iso8601

@@ -4,6 +4,14 @@ import { Controller } from "@hotwired/stimulus"
 // this browser so the same person does not retype it on every artifact.
 const AUTHOR_KEY = "artifacto:author"
 
+// Shown the first time comment mode is turned on, and never again: after that
+// the cursor inside the frame is the reminder.
+const HINT_KEY = "artifacto:hinted"
+const HINT_TEXT = "Comment mode is on — click anything in the page to leave a comment there. " +
+  "Press Comment again, or Escape, to stop."
+const HINT_MS = 6000
+const FLASH_MS = 2500
+
 // Storage is a convenience here — a remembered name, a remembered edit token —
 // and every access to it throws outright where the browser has denied it. None
 // of that is worth taking the overlay down for, least of all in connect(), where
@@ -22,7 +30,7 @@ const remember = (key, value) => {
 export default class extends Controller {
   static targets = [
     "frame", "overlay", "panel", "quote", "list", "body", "author", "count", "toggle", "error",
-    "drawer", "entries"
+    "drawer", "entries", "toast", "pins"
   ]
   static values = { slug: String, token: String }
 
@@ -39,10 +47,35 @@ export default class extends Controller {
 
   disconnect() {
     clearTimeout(this.anchorTimeout)
+    clearTimeout(this.toastTimeout)
     window.removeEventListener("message", this.onMessage)
   }
 
-  copy() { navigator.clipboard.writeText(window.location.href) }
+  // Copying is invisible by definition: nothing on the page changes, so without a
+  // word back the reader cannot tell a copy from a dead button.
+  async copy() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      this.flash("Link copied.")
+    } catch {
+      this.flash("Could not copy — the link is in the address bar.")
+    }
+  }
+
+  // Escape backs out one layer at a time, outermost first: the report menu, then
+  // the thread, then the drawer, and only then comment mode itself. A keypress
+  // inside the frame never reaches this document, but every one of these layers
+  // leaves focus on this side — the thread focuses its own textarea — so there is
+  // nothing to forward and no reason to touch the artifact's hook for it.
+  escape(event) {
+    if (event.key !== "Escape") return
+
+    const menu = this.element.querySelector(".menu[open]")
+    if (menu) menu.open = false
+    else if (this.hasPanelTarget && !this.panelTarget.hidden) this.close()
+    else if (this.hasDrawerTarget && !this.drawerTarget.hidden) this.drawerTarget.hidden = true
+    else if (this.mode) this.toggle()
+  }
 
   // <details> has no light dismiss of its own, so a menu left open keeps sitting
   // over the artifact until the reader thinks to press ⋯ again.
@@ -91,6 +124,17 @@ export default class extends Controller {
       const group = this.groups.get(comment.selector) ||
         { key: comment.selector, selector: comment.selector, quote: comment.quote, comments: [] }
       group.comments.push(comment)
+
+      // The pin belongs to the spot, and the spot is where the first comment
+      // that recorded one was left; later replies stack onto that pin rather
+      // than dragging it somewhere new. First *recorded* rather than simply
+      // first, because a thread started before the anchor point existed would
+      // otherwise hold the whole group at its element's corner forever.
+      if (group.fx == null && comment.anchor_x != null) {
+        group.fx = comment.anchor_x
+        group.fy = comment.anchor_y
+      }
+
       this.groups.set(comment.selector, group)
     }
 
@@ -138,17 +182,38 @@ export default class extends Controller {
       // with it rather than clamp to that edge and appear to mark what is there.
       const measured = position.found && (position.width > 0 || position.height > 0)
 
-      if (measured && (position.y + position.height <= 0 || position.x + position.width <= 0)) {
+      // Where the pin wants to be: the recorded spot inside the element, or the
+      // element's own corner for a comment left before spots were recorded.
+      const group = this.groups.get(position.key)
+      const anchored = group?.fx != null
+      const px = position.x + this.offset(group?.fx, position.width)
+      const py = position.y + this.offset(group?.fy, position.height)
+
+      // What counts as gone depends on what the pin stands for. A recorded spot
+      // is a point, so the point itself decides — otherwise a comment left far
+      // down a page rides the clamp below up to the top edge as soon as the
+      // reader scrolls past it, and marks whatever happens to be there. Without
+      // a spot the pin stands for the whole element, which is only gone once its
+      // far edge has passed the top or left.
+      const gone = anchored
+        ? py < 0 || px < 0
+        : position.y + position.height <= 0 || position.x + position.width <= 0
+
+      if (measured && gone) {
         pin.hidden = true
         continue
       }
 
       // Anything we cannot place parks in the corner instead of vanishing: the
       // comment still exists and still has to be reachable. A placed one is
-      // nudged into the margin so the pin does not cover the text it marks, and
-      // clamped only when its element straddles the edge.
-      const x = measured ? Math.max(0, position.x - 20) : 8 + detached * 28
-      const y = measured ? Math.max(0, position.y - 2) : 8
+      // offset to the point inside the element that was clicked — without that
+      // every comment on a large element, and every comment on <body>, marks
+      // that element's top-left corner instead of the spot the reader meant.
+      // Then nudged into the margin so the pin does not cover what it marks. The
+      // clamp is only ever the nudge coming back: anything genuinely off the top
+      // or left has already been ruled gone above.
+      const x = measured ? Math.max(0, px - 20) : 8 + detached * 28
+      const y = measured ? Math.max(0, py - 2) : 8
       if (!measured) detached += 1
 
       pin.classList.toggle("is-detached", !measured)
@@ -159,6 +224,12 @@ export default class extends Controller {
     }
   }
 
+  // Comments written before the anchor point was recorded have no fraction, and
+  // fall back to the element's own corner rather than guessing at a middle.
+  offset(fraction, size) {
+    return typeof fraction === "number" ? fraction * size : 0
+  }
+
   onMessage(event) {
     // Every artifact has its own origin, so identity comes from the frame, not event.origin.
     if (!this.hasFrameTarget || event.source !== this.frameTarget.contentWindow) return
@@ -166,7 +237,7 @@ export default class extends Controller {
     if (!data || typeof data.type !== "string" || !data.type.startsWith("artifacto:")) return
 
     if (data.type === "artifacto:ready") this.sendAnchors()
-    else if (data.type === "artifacto:anchor") this.openPanel({ selector: data.selector, quote: data.quote, x: data.x, y: data.y })
+    else if (data.type === "artifacto:anchor") this.openPanel({ selector: data.selector, quote: data.quote, fx: data.fx, fy: data.fy, x: data.x, y: data.y })
     else if (data.type === "artifacto:positions" && Array.isArray(data.positions)) this.place(data.positions)
   }
 
@@ -212,11 +283,42 @@ export default class extends Controller {
     this.post({ type: "artifacto:mode", comment: this.mode })
     this.toggleTarget.classList.toggle("primary", this.mode)
     this.toggleTarget.textContent = this.mode ? "Click a spot…" : "Comment"
-    if (!this.mode) this.close()
+    if (this.mode) return this.hint()
+
+    this.hideToast()
+    this.close()
   }
 
-  openPanel({ selector, quote, comments = [], x, y }) {
-    this.pending = { selector, quote }
+  // Comment mode is a state the reader cannot see from this side of the frame —
+  // the cursor that announces it lives in the artifact's document. One toast the
+  // first time explains it; after that the cursor has done the teaching.
+  hint() {
+    if (recall(HINT_KEY)) return
+
+    remember(HINT_KEY, "seen")
+    this.flash(HINT_TEXT, HINT_MS)
+  }
+
+  // One toast for everything that has something to say and nowhere to say it.
+  // Emptying it is what hides it — see .toast:empty. The element is never taken
+  // out of the page, because a role="status" region whose text changed while it
+  // was display:none is not reliably announced, and for Copy link this toast is
+  // the only feedback there is.
+  flash(text, ms = FLASH_MS) {
+    if (!this.hasToastTarget) return
+
+    this.toastTarget.textContent = text
+    clearTimeout(this.toastTimeout)
+    this.toastTimeout = setTimeout(() => this.hideToast(), ms)
+  }
+
+  hideToast() {
+    clearTimeout(this.toastTimeout)
+    if (this.hasToastTarget) this.toastTarget.textContent = ""
+  }
+
+  openPanel({ selector, quote, fx, fy, comments = [], x, y }) {
+    this.pending = { selector, quote, anchor_x: fx, anchor_y: fy }
     this.errorTarget.hidden = true
     this.quoteTarget.textContent = quote ? `“${quote.slice(0, 80)}”` : "this spot"
     this.listTarget.replaceChildren(...comments.map((comment) => this.commentNode(comment)))
@@ -285,6 +387,16 @@ export default class extends Controller {
     this.load()
   }
 
+  // Pins sit on top of somebody else's design, so there has to be a way to get
+  // them out of the way and still read the page underneath. Session-only: the
+  // next visit starts with the comments visible, which is the point of them.
+  togglePins() { this.showPins(this.overlayTarget.hidden) }
+
+  showPins(visible) {
+    this.overlayTarget.hidden = !visible
+    if (this.hasPinsTarget) this.pinsTarget.textContent = visible ? "Hide pins" : "Show pins"
+  }
+
   // Side panel: every comment on the artifact, including the ones whose anchor
   // no longer resolves and whose pin is therefore parked in the corner.
   drawer() {
@@ -340,6 +452,7 @@ export default class extends Controller {
 
   jump(group) {
     const pin = this.pins.get(group.key)
+    this.showPins(true)
     this.openPanel({ ...group, x: pin?.offsetLeft ?? 8, y: pin?.offsetTop ?? 8 })
   }
 

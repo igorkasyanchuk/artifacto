@@ -27,6 +27,7 @@ class CommentTest < ActiveSupport::TestCase
 
     # `author` is what the reader typed into a box, not who they are: it goes out,
     # the IP hash never does.
-    assert_equal %w[id selector quote author body created_at], comment.as_json.keys.map(&:to_s)
+    assert_equal %w[id selector quote anchor_x anchor_y author body created_at],
+                 comment.as_json.keys.map(&:to_s)
   end
 end

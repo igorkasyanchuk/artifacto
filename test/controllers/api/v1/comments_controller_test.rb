@@ -41,6 +41,21 @@ class Api::V1::CommentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal Comment::MAX_AUTHOR, Comment.order(:id).last.author.length
   end
 
+  test "the click's position inside the anchor is kept, clamped, or left unset" do
+    post_comment
+    assert_nil Comment.sole.anchor_x
+
+    post_comment(anchor_x: 0.7, anchor_y: 0.45)
+    assert_equal [ 0.7, 0.45 ], Comment.order(:id).last.then { |c| [ c.anchor_x, c.anchor_y ] }
+
+    # The frame is not trusted with these any more than with a selector.
+    post_comment(anchor_x: 4.2, anchor_y: -3)
+    assert_equal [ 1.0, 0.0 ], Comment.order(:id).last.then { |c| [ c.anchor_x, c.anchor_y ] }
+
+    post_comment(anchor_x: "over here")
+    assert_nil Comment.order(:id).last.anchor_x
+  end
+
   test "the IP is only ever stored hashed" do
     post_comment
     assert_equal Artifact.hash_ip("127.0.0.1"), Comment.sole.author_ip_hash

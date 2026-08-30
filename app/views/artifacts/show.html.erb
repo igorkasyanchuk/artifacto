@@ -6,7 +6,8 @@
     reach this document, and the artifact is the likeliest place to click next. %>
 <div class="viewer" data-controller="wrapper" data-wrapper-slug-value="<%= @artifact.slug %>"
      data-wrapper-token-value="<%= @unlock_token %>"
-     data-action="click@document->wrapper#dismissMenu blur@window->wrapper#dismissMenu">
+     data-action="click@document->wrapper#dismissMenu blur@window->wrapper#dismissMenu
+                  keydown@document->wrapper#escape">
   <header class="bar">
     <%= image_tag "/icon.svg", class: "mark", alt: "", aria: { hidden: true } %>
     <strong class="bar-title" title="<%= @artifact.title.presence || "Untitled artifact" %>">
@@ -29,6 +30,7 @@
     <div class="actions">
       <% unless @needs_pin %>
         <button data-wrapper-target="toggle" data-action="wrapper#toggle">Comment</button>
+        <button data-wrapper-target="pins" data-action="wrapper#togglePins">Hide pins</button>
         <button data-action="wrapper#drawer">All comments</button>
       <% end %>
       <button data-action="wrapper#copy">Copy link</button>
@@ -47,6 +49,10 @@
       </details>
     </div>
   </header>
+
+  <%# Empty on purpose, and empty is also how it hides: it stays in the page so
+      that a screen reader is still watching it when its text arrives. %>
+  <p class="toast" role="status" data-wrapper-target="toast"></p>
 
   <% if flash[:notice] || flash[:alert] %>
     <div class="flash"><%= flash[:notice] || flash[:alert] %></div>
