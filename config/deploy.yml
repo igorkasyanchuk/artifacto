@@ -48,6 +48,7 @@ env:
     - AR_ENCRYPTION_PRIMARY_KEY        # encrypts artifacts.creator_ip
     - AR_ENCRYPTION_DETERMINISTIC_KEY
     - AR_ENCRYPTION_SALT
+    - SENTRY_DSN            # error tracking; unset it and the SDK stays off
   clear:
     # Both unset would run single-origin mode; this box is the two-zone layout.
     APP_ORIGIN: https://artifacto.app

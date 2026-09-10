@@ -69,3 +69,7 @@ end
 
 # Authentication for the admin area [https://github.com/heartcombo/devise]
 gem "devise", "~> 4.9"
+
+# Error tracking. Sends exceptions to Bugsink (Sentry-compatible) when SENTRY_DSN is set.
+gem "sentry-rails", "~> 5.28"
+gem "sentry-sidekiq", "~> 5.28"
