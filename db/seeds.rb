@@ -5,11 +5,13 @@
 # already has an account must not hand that account admin while leaving its
 # existing password in place.
 email = ENV.fetch("ADMIN_EMAIL", "admin@example.com")
-password = ENV.fetch("ADMIN_PASSWORD") { Rails.env.production? ? SecureRandom.alphanumeric(24) : "password" }
+# Required in production rather than generated: a generated one would have to be
+# printed, and stdout here is the deploy log.
+password = ENV.fetch("ADMIN_PASSWORD") { Rails.env.production? ? raise("ADMIN_PASSWORD is required") : "password" }
 
 user = User.find_or_initialize_by(email: email)
 user.password = password
 user.role = "admin"
 user.save!
 
-puts "Admin: #{email} / #{password}"
+puts "Admin: #{email}#{" / #{password}" unless ENV.key?("ADMIN_PASSWORD")}"

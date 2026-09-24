@@ -50,6 +50,7 @@ Rails.application.configure do
   # Rails.cache is where ActionController::RateLimiting keeps its counters, so it
   # has to outlive a deploy and be shared by every process. The default file
   # store is neither. Redis is already here for Sidekiq.
+  last_cache_report = nil
   config.cache_store = :redis_cache_store, {
     url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"),
     namespace: "artifacto:cache",
@@ -57,7 +58,15 @@ Rails.application.configure do
       # A cache outage must not take the whole app down with it. Rate limiting
       # fails open here, which is the same thing the file store did on a fresh
       # container, and Cloudflare's rule is the real backstop anyway.
+      # Reported, not only logged: rate limits count in this store, so while it is
+      # down every limit quietly stops limiting.
       Rails.logger.error("Rails.cache #{method} failed: #{exception.class}: #{exception.message}")
+      # Once a minute at most: every request touches the cache, so reporting each
+      # failure would spend the whole error-tracker quota on one outage.
+      if last_cache_report.nil? || last_cache_report < 1.minute.ago
+        last_cache_report = Time.current
+        Sentry.capture_exception(exception)
+      end
     }
   }
 

@@ -124,4 +124,13 @@ class ArtifactTest < ActiveSupport::TestCase
 
     assert_equal AgentInjector.csp_hash, hash_of.call(inline.call(artifact.reload.served_html))
   end
+
+  test "a PIN must be long enough to guess slowly and short enough for bcrypt to read whole" do
+    artifact = Artifact.create_from_source!(HTML)
+
+    assert_raises(ActiveRecord::RecordInvalid) { artifact.update!(pin: "1234") }
+    assert_raises(ActiveRecord::RecordInvalid) { artifact.update!(pin: "ж" * 40) }
+    assert artifact.update!(pin: "123456")
+    assert_includes Artifact.new(pin: "1").tap(&:validate).errors.full_messages.first, "PIN"
+  end
 end

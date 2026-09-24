@@ -11,6 +11,13 @@ class ArtifactsController < ApplicationController
 
   before_action :load_artifact
 
+  # A PIN is short by nature, so guesses are what has to be scarce: per reader,
+  # and per artifact so a botnet spread across IPs still gets nowhere.
+  rate_limit to: 10, within: 10.minutes, only: :unlock, name: "unlock-ip",
+             with: -> { redirect_to artifact_path(params[:slug]), alert: "Too many attempts, try again later." }
+  rate_limit to: 20, within: 1.hour, only: :unlock, name: "unlock-slug", by: -> { params[:slug] },
+             with: -> { redirect_to artifact_path(params[:slug]), alert: "Too many attempts, try again later." }
+
   def show
     @unlock_token = valid_unlock_token
     @needs_pin = @artifact.pin? && @unlock_token.nil?

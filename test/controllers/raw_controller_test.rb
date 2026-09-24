@@ -84,7 +84,7 @@ class RawControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "a pinned artifact needs a signed token, not a cookie" do
-    @artifact.update!(pin: "1234")
+    @artifact.update!(pin: "123456")
 
     get_artifact @artifact
     assert_response :unauthorized

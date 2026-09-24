@@ -3,6 +3,18 @@
 # hosts foreign JavaScript, so it sets no cookies and answers nothing but the
 # artifact body.
 class RawController < ActionController::Base
+  # In single-origin mode the artifact is served from the app's own origin, so
+  # allow-same-origin would hand uploaded JavaScript the app's storage and let
+  # every artifact read every other one. Withholding it forces an opaque origin
+  # instead, which is the isolation a second domain would have given. The cost is
+  # that storage APIs stop working inside artifacts.
+  #
+  # Shared with the wrapper's <iframe sandbox>: the browser applies the
+  # intersection of the two, so they must never drift apart.
+  def self.sandbox_flags
+    [ "allow-scripts", "allow-modals", ("allow-same-origin" if Rails.configuration.x.content_host) ].compact.join(" ")
+  end
+
   def show
     artifact = Artifact.find_by(slug: params[:slug] || request.subdomains.first)
     return head :not_found if artifact.nil?
@@ -63,14 +75,6 @@ class RawController < ActionController::Base
       # needs inline scripts to work at all; the origin boundary is what contains it.
       script = artifact.format == "markdown" ? AgentInjector.csp_hash : "'unsafe-inline' 'unsafe-eval'"
 
-      # In single-origin mode the artifact is served from the app's own origin, so
-      # allow-same-origin would hand uploaded JavaScript the app's storage and let
-      # every artifact read every other one. Withholding it forces an opaque
-      # origin instead, which is the isolation a second domain would have given.
-      # The cost is that storage APIs stop working inside artifacts.
-      sandbox = "sandbox allow-scripts allow-modals"
-      sandbox += " allow-same-origin" if Rails.configuration.x.content_host
-
       [
         "default-src 'none'",
         "script-src #{script}",
@@ -88,7 +92,7 @@ class RawController < ActionController::Base
         # page in a new tab, which is the one way left to redirect a viewer.
         # Both mean an artifact cannot link out at all — which is what
         # "self-contained" was supposed to mean anyway.
-        sandbox
+        "sandbox #{self.class.sandbox_flags}"
       ].join("; ")
     end
 

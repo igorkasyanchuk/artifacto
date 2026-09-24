@@ -109,7 +109,7 @@ class Api::V1::CommentsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "a PIN gates the comments too, since a quote is text out of the locked page" do
-    @artifact.update!(pin: "1234")
+    @artifact.update!(pin: "123456")
 
     post "/api/v1/artifacts/#{@artifact.slug}/comments", params: { selector: "body > p", body: "leak" }
     assert_response :unauthorized
@@ -128,7 +128,7 @@ class Api::V1::CommentsControllerTest < ActionDispatch::IntegrationTest
 
   test "the edit token outranks the PIN, so the publishing agent still reads its feedback" do
     @artifact.comments.create!(selector: "body > p", quote: "anchor me", body: "needs a chart")
-    @artifact.update!(pin: "1234")
+    @artifact.update!(pin: "123456")
 
     get "/api/v1/artifacts/#{@artifact.slug}/comments",
         headers: { "Authorization" => "Bearer #{@token}" }

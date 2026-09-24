@@ -29,6 +29,28 @@ module Api
         assert_nil response.parsed_body["edit_token"]
       end
 
+      test "a short PIN is refused with a JSON reason" do
+        assert_no_difference "Artifact.count" do
+          post "/api/v1/artifacts", params: { source: HTML, pin: "1234" }
+        end
+
+        assert_response :unprocessable_entity
+        assert_match(/pin/i, response.parsed_body["error"])
+      end
+
+      test "a locked artifact's metadata needs the PIN token or the edit token" do
+        post "/api/v1/artifacts", params: { source: HTML, title: "Secret plans", pin: "123456" }
+        body = response.parsed_body
+
+        get "/api/v1/artifacts/#{body['slug']}"
+        assert_response :unauthorized
+        assert_no_match(/Secret plans/, response.body)
+
+        get "/api/v1/artifacts/#{body['slug']}", headers: { "Authorization" => "Bearer #{body['edit_token']}" }
+        assert_response :success
+        assert_equal "Secret plans", response.parsed_body["title"]
+      end
+
       test "accepts a file right at the size limit over multipart" do
         body = "<html><body>#{'x' * (Artifact.max_bytes - 40)}</body></html>"
         assert_operator body.bytesize, :<=, Artifact.max_bytes

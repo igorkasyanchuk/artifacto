@@ -10,10 +10,6 @@ module Api
 
       rate_limit to: 20, within: 1.hour, only: :create, with: -> { too_many_requests }
 
-      rescue_from ActiveRecord::RecordInvalid do |error|
-        render json: { error: error.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
-      end
-
       def index = render(json: { comments: @artifact.comments.oldest_first.as_json })
 
       def create

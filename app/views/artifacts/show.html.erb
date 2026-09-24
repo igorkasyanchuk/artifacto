@@ -9,7 +9,9 @@
      data-action="click@document->wrapper#dismissMenu blur@window->wrapper#dismissMenu
                   keydown@document->wrapper#escape">
   <header class="bar">
-    <%= image_tag "/icon.svg", class: "mark", alt: "", aria: { hidden: true } %>
+    <a class="home-link" href="<%= root_path %>" title="artifacto">
+      <%= image_tag "/icon.svg", class: "mark", alt: "artifacto" %>
+    </a>
     <strong class="bar-title" title="<%= @artifact.title.presence || "Untitled artifact" %>">
       <%= @artifact.title.presence || "Untitled artifact" %>
     </strong>
@@ -60,9 +62,11 @@
 
   <% if @needs_pin %>
     <div class="center">
-      <h1>This artifact is locked</h1>
+      <p class="code">401 · pin required</p>
+      <h1>Locked</h1>
+      <p class="note">Whoever published this artifact set a PIN on it.</p>
       <%= form_with url: unlock_artifact_path(@artifact.slug), method: :post do |form| %>
-        <%= form.password_field :pin, placeholder: "PIN", autocomplete: "off" %>
+        <%= form.password_field :pin, placeholder: "PIN", autocomplete: "off", autofocus: true %>
         <p><%= form.submit "Unlock", class: "primary" %></p>
       <% end %>
     </div>
@@ -72,7 +76,12 @@
           certainly attached: artifacto:ready can be sent before Stimulus has
           connected here, and the send that follows the comments fetch races the
           frame's parser. Sending again here costs one postMessage. %>
+      <%# The sandbox attribute, not only the CSP header: the header covers the
+          first document alone, while the attribute holds for anything the frame
+          navigates itself to. Nothing stops a frame loading an outside page, but that
+          page stays opaque, popup-less and unable to navigate the top window. %>
       <iframe class="frame" src="<%= @iframe_src %>" data-wrapper-target="frame"
+              sandbox="<%= RawController.sandbox_flags %>"
               data-action="load->wrapper#sendAnchors"
               title="<%= @artifact.title.presence || "Artifact" %>"></iframe>
 

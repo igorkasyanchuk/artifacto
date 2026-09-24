@@ -27,6 +27,12 @@ class Artifact < ApplicationRecord
 
   # Gives us #pin=, #pin_digest and #authenticate_pin without hand-rolling bcrypt.
   has_secure_password :pin, validations: false
+  PIN_MIN_LENGTH = 6
+
+  # Only checked when a PIN is being set; the plaintext is not kept after that.
+  validates :pin, length: { minimum: PIN_MIN_LENGTH }, allow_nil: true
+  # bcrypt reads 72 bytes, not characters; past that, the rest of the PIN is ignored.
+  validate { errors.add(:pin, :too_long, count: 72) if pin.to_s.bytesize > 72 }
 
   validates :slug, presence: true, uniqueness: true, format: { with: /\A[a-z0-9]{#{SLUG_LENGTH}}\z/ }
   validates :format, inclusion: { in: FORMATS }

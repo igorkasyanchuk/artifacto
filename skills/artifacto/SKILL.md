@@ -19,7 +19,7 @@ Uploads one self-contained file and returns a public URL. No account, no login.
   download, or link to an external site. Build the page to stand on its own —
   outbound links will not work.
 
-Set `ARTIFACTO_URL` if self-hosting; it defaults to `https://artifacto.app`. That
+Set `ARTIFACTO_URL` if self-hosting; it defaults to `https://artifacto.igorkasyanchuk.com`. That
 default is not always the instance you want: an instance serves this file at
 `/skill` with its own host already substituted, so a copy fetched from there is
 correct, while a copy taken from the repo still points at the public default. If a request
@@ -28,7 +28,7 @@ base URL, not the API. Confirm the base before retrying, and ask the user which
 instance to publish to rather than guessing:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 "${ARTIFACTO_URL:-https://artifacto.app}/up"
+curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 "${ARTIFACTO_URL:-https://artifacto.igorkasyanchuk.com}/up"
 ```
 
 ## Publish first, verify rarely
@@ -59,7 +59,7 @@ both fail silently in one: every asset is inline, and nothing links out.
 ## Upload
 
 ```bash
-curl -sS -w '\n%{http_code}\n' "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts" \
+curl -sS -w '\n%{http_code}\n' "${ARTIFACTO_URL:-https://artifacto.igorkasyanchuk.com}/api/v1/artifacts" \
   -F "file=@report.html" \
   -F "title=Q3 report" \
   -F "expires_in_days=14"
@@ -70,7 +70,7 @@ discards that body and leaves nothing but an exit code to guess from.
 
 Use `-F "format=markdown"` for a `.md` file — it is rendered and styled server-side.
 Add `-F "allow_network=true"` only if the page genuinely fetches data at runtime.
-Add `-F "pin=1234"` to require a PIN before the page can be viewed.
+Add `-F "pin=…"` (at least 6 characters) to require a PIN before the page can be viewed.
 
 Always send the file with `-F file=@…` (multipart). A form field larger than
 4 MB is rejected by the server's request parser before it reaches the app.
@@ -80,7 +80,7 @@ The response is JSON:
 ```json
 {
   "slug": "k3Fp9wQz2mVnB7xLd4Rs1T",
-  "url": "https://artifacto.app/a/k3Fp9wQz2mVnB7xLd4Rs1T",
+  "url": "https://artifacto.igorkasyanchuk.com/a/k3Fp9wQz2mVnB7xLd4Rs1T",
   "raw_url": "https://k3Fp9wQz2mVnB7xLd4Rs1T.artifactousercontent.com/",
   "edit_token": "…",
   "expires_at": "2026-09-06T12:00:00Z"
@@ -110,7 +110,7 @@ user has already shared that link.
 ```bash
 TOKEN=$(jq -r .edit_token .artifacto/report.json)
 SLUG=$(jq -r .slug .artifacto/report.json)
-BASE="${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG"
+BASE="${ARTIFACTO_URL:-https://artifacto.igorkasyanchuk.com}/api/v1/artifacts/$SLUG"
 
 curl -sS -X PUT    -H "Authorization: Bearer $TOKEN" -F "file=@report.html" -F "expires_in_days=30" "$BASE"
 curl -sS -X PATCH  -H "Authorization: Bearer $TOKEN" -F "expires_in_days=30" "$BASE/extend"
@@ -128,7 +128,7 @@ at that cache — tell them to hard-reload rather than publishing again. To chec
 the server actually holds, compare `last-modified` against the time of your `PUT`:
 
 ```bash
-curl -sSI "${ARTIFACTO_URL:-https://artifacto.app}/raw/$SLUG" | grep -i 'last-modified\|etag'
+curl -sSI "${ARTIFACTO_URL:-https://artifacto.igorkasyanchuk.com}/raw/$SLUG" | grep -i 'last-modified\|etag'
 ```
 
 ## Building the page
@@ -157,7 +157,7 @@ media must arrive as `data:` URIs.
 | `<img src="https://…">` | blocked; use a `data:` URI |
 | `fetch()`, `XMLHttpRequest`, `WebSocket` | blocked by `connect-src 'none'` unless the artifact was uploaded with `allow_network=true` |
 | `<form>` submit, `mailto:` | blocked by `form-action 'none'` |
-| `<a href="https://…">`, `target="_blank"`, `window.open` | no top-level navigation and no popups: an artifact cannot link out at all |
+| `<a href="https://…">`, `target="_blank"`, `window.open` | no top-level navigation and no popups: an artifact cannot take the viewer anywhere |
 | a download link, `<a download>` | no `allow-downloads` in the sandbox |
 | `localStorage`, `sessionStorage`, `IndexedDB` | **throws** on an instance in single-origin mode, where the sandbox withholds `allow-same-origin`. Never assume it exists |
 
@@ -247,7 +247,7 @@ feedback is the reason to publish here rather than anywhere else: read it, fix t
 page, `PUT` the same URL.
 
 ```bash
-curl -sS "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG/comments"
+curl -sS "${ARTIFACTO_URL:-https://artifacto.igorkasyanchuk.com}/api/v1/artifacts/$SLUG/comments"
 ```
 
 ```json
@@ -285,7 +285,7 @@ After acting on a comment, clear it so it does not come back next time:
 
 ```bash
 curl -sS -X DELETE -H "Authorization: Bearer $TOKEN" \
-  "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG/comments/$ID"
+  "${ARTIFACTO_URL:-https://artifacto.igorkasyanchuk.com}/api/v1/artifacts/$SLUG/comments/$ID"
 ```
 
 Comments survive a `PUT` — updating the page does not wipe the feedback on it.
@@ -293,10 +293,11 @@ Comments survive a `PUT` — updating the page does not wipe the feedback on it.
 ## Metadata
 
 ```bash
-curl -sS "${ARTIFACTO_URL:-https://artifacto.app}/api/v1/artifacts/$SLUG"
+curl -sS "${ARTIFACTO_URL:-https://artifacto.igorkasyanchuk.com}/api/v1/artifacts/$SLUG"
 ```
 
-Returns title, size, view count, comment count and expiry. No token needed.
+Returns title, size, view count, comment count and expiry. No token needed — unless
+the artifact has a PIN, in which case pass `-H "Authorization: Bearer $TOKEN"`.
 
 ## Errors
 

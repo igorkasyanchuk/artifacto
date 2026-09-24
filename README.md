@@ -3,9 +3,10 @@
 Drop a self-contained HTML (or Markdown) file, get a public link. No account, no
 login. The link expires after 14 days.
 
-**Live instance:** <https://3tpf0xkbxuc4pgalpbgmctdi.187.77.103.66.sslip.io/> —
-a Coolify box on a throwaway hostname, running in single-origin mode. Treat it
-as a staging deploy, not a place to put anything that matters.
+**Live instance:** <https://artifacto.igorkasyanchuk.com/> — running in
+single-origin mode, so artifacts share an origin with the app and lean on the
+sandbox instead of a second domain. Read **Single-origin mode** below before
+putting anything that matters there.
 
 Built for AI agents first: `skills/artifacto/SKILL.md` teaches Claude Code, Cursor
 or anything else that can run `curl` to publish and then update the same link.
@@ -27,7 +28,7 @@ Isolation is the architecture. Set `CONTENT_HOST` and you get it:
 
 | Zone | Serves | Notes |
 |---|---|---|
-| `APP_ORIGIN` (e.g. `https://artifacto.app`) | Landing page, wrapper page, API, admin | Sessions and cookies live here |
+| `APP_ORIGIN` (e.g. `https://artifacto.igorkasyanchuk.com`) | Landing page, wrapper page, API, admin | Sessions and cookies live here |
 | `<slug>.CONTENT_HOST` (e.g. `<slug>.artifactousercontent.com`) | The artifact itself | Separate registrable domain, one origin per artifact, no cookies ever set |
 
 The app itself is not host-constrained — it answers on whatever domain it is
@@ -61,9 +62,16 @@ Fine for a staging box or a first deploy on a throwaway hostname. Set
 `CONTENT_HOST` before it matters.
 
 Artifacts are served under a policy that blocks `fetch`, form submission, top-level
-navigation, popups, downloads and every external resource. An artifact cannot link
-out at all — it is a closed page. `allow_network=true` opens `connect-src` for one
-artifact and nothing else. See `RawController`.
+navigation, popups, downloads and every external resource. `allow_network=true`
+opens `connect-src` for one artifact and nothing else. See `RawController`.
+
+One thing no policy can stop: an artifact navigating *its own frame*
+(`location = "https://…"`). Browsers dropped CSP `navigate-to`, so the frame can
+load an outside page, and a URL is a channel that can carry data out with it. The
+wrapper's `<iframe sandbox>` attribute is what bounds that: unlike the CSP header,
+it applies to whatever the frame navigates to, so the outside page is still
+sandboxed — opaque origin, no top-level navigation, no popups, no forms, no
+downloads — and still framed under the Artifacto bar.
 
 Uploaded HTML is never sanitized — stripping `<script>` would break every
 interactive artifact. Markdown is different: we render it, so it is sanitized and
@@ -125,7 +133,7 @@ misconfigured deploy never quietly writes unencrypted IPs.
 | Variable | Default | Example | Purpose |
 |---|---|---|---|
 | `CONTENT_HOST` | unset → single-origin mode | `artifactousercontent.com` | Parent domain for artifact subdomains. Must be a different registrable domain from the app |
-| `APP_ORIGIN` | unset → taken from the request | `https://artifacto.app` | Origin used in `frame-ancestors` and the artifact's postMessage target. **Required when `CONTENT_HOST` is set**, ignored otherwise |
+| `APP_ORIGIN` | unset → taken from the request | `https://artifacto.igorkasyanchuk.com` | Origin used in `frame-ancestors` and the artifact's postMessage target. **Required when `CONTENT_HOST` is set**, ignored otherwise |
 
 **Runtime**
 
@@ -198,7 +206,8 @@ tunnel's config.
 
 ### Cloudflare
 
-Both zones, free plan.
+Both zones, free plan. The live instance runs single-origin, so only the app zone
+exists there; the content-zone rules apply once `CONTENT_HOST` is set.
 
 **App zone**
 - WAF managed rules on; rate limiting rule on `POST /api/v1/*`.
@@ -355,11 +364,12 @@ Set `CONTENT_HOST` before turning readers loose on a public instance.
 Upload is open to anyone with no key, so assume the service will be found.
 
 **What the serving policy already makes impossible.** A credential-harvesting form
-cannot submit (`form-action 'none'`, which covers `mailto:` too). Nothing can be
-exfiltrated (`connect-src 'none'`). No remote payload can be pulled in
+cannot submit (`form-action 'none'`, which covers `mailto:` too). `fetch` and
+friends go nowhere (`connect-src 'none'`). No remote payload can be pulled in
 (`default-src 'none'`). The viewer cannot be redirected or handed a file: the
-sandbox allows neither top-level navigation, nor popups, nor downloads. The usual
-phishing and malware pages simply do not function here.
+sandbox allows neither top-level navigation, nor popups, nor downloads. The one
+exit left is the frame navigating itself, which the sandbox attribute keeps
+jailed — see above.
 
 **What is left, and what answers it.**
 

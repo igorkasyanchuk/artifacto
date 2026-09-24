@@ -5,6 +5,7 @@ module Api
 
       skip_before_action :load_artifact, only: :create
       before_action :require_edit_token, only: %i[update renew destroy]
+      before_action :require_pin, only: :show
 
       rate_limit to: 20, within: 1.hour, only: :create,
                  with: -> { too_many_requests }
@@ -24,10 +25,10 @@ module Api
           ttl_days: params[:expires_in_days],
           title: params[:title].presence,
           allow_network: boolean(params[:allow_network]),
+          pin: params[:pin].presence,
           creator_ip_hash: client_ip_hash,
           creator_ip: request.remote_ip
         )
-        artifact.update!(pin: params[:pin]) if params[:pin].present?
 
         render json: payload(artifact, edit_token: artifact.edit_token), status: :created
       end

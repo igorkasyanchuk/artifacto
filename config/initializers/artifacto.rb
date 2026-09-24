@@ -25,6 +25,10 @@ Rails.application.configure do
     raise "APP_ORIGIN is required when CONTENT_HOST is set (e.g. https://your-app.example.com)"
   end
 
+  # A known key turns every stored IP hash back into an IP: IPv4 is small enough
+  # to brute-force. So no default in production.
+  raise "IP_HASH_SECRET is required" if strict && ENV["IP_HASH_SECRET"].blank?
+
   # Keys come from ENV so the repo stays safe to open-source. The fallbacks are
   # throwaway values for development, tests and the asset build — never production.
   config.active_record.encryption.primary_key =

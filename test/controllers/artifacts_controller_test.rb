@@ -48,7 +48,7 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "a locked artifact offers nothing to comment on until it is unlocked" do
-    @artifact.update!(pin: "1234")
+    @artifact.update!(pin: "123456")
 
     get "/a/#{@artifact.slug}"
     assert_select "[data-wrapper-target=overlay]", false
@@ -56,11 +56,14 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "each render of an unlocked artifact hands out a fresh token" do
-    @artifact.update!(pin: "1234")
+    @artifact.update!(pin: "123456")
     verifier = Rails.application.message_verifier(:artifact_pin)
 
-    post "/a/#{@artifact.slug}/unlock", params: { pin: "1234" }
+    post "/a/#{@artifact.slug}/unlock", params: { pin: "123456" }
     arrived_with = request.query_parameters["k"] || response.location[/k=([^&]+)/, 1]
+    # Same second, same expiry, same signature: step past it so a fresh token is
+    # distinguishable from the one we arrived with.
+    travel 1.second
     follow_redirect!
 
     handed_out = response.body[/data-wrapper-token-value="([^"]+)"/, 1]
@@ -70,7 +73,7 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "a pinned artifact asks for the PIN before framing anything" do
-    @artifact.update!(pin: "1234")
+    @artifact.update!(pin: "123456")
 
     get "/a/#{@artifact.slug}"
     assert_response :success
@@ -79,7 +82,7 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
     post "/a/#{@artifact.slug}/unlock", params: { pin: "nope" }
     assert_response :unauthorized
 
-    post "/a/#{@artifact.slug}/unlock", params: { pin: "1234" }
+    post "/a/#{@artifact.slug}/unlock", params: { pin: "123456" }
     assert_response :redirect
     follow_redirect!
     assert_includes response.body, "<iframe"
@@ -96,5 +99,16 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
     # must not add a second copy above it.
     follow_redirect!
     assert_select ".flash", count: 1
+  end
+
+  test "the frame is sandboxed by attribute, so the sandbox survives the frame navigating itself" do
+    get "/a/#{@artifact.slug}"
+
+    sandbox = css_select("iframe.frame").first["sandbox"]
+    assert_includes sandbox.split, "allow-scripts"
+    # Same-origin only when the artifact has an origin of its own to be same with.
+    assert_equal Rails.configuration.x.content_host.present?, sandbox.split.include?("allow-same-origin")
+    assert_not_includes sandbox.split, "allow-top-navigation"
+    assert_not_includes sandbox.split, "allow-popups"
   end
 end
