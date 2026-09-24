@@ -5,10 +5,10 @@ class PagesController < ApplicationController
   end
 
   # The skill file ships in the repo, but an agent that downloads it needs the
-  # examples pointed at *this* deployment, not at artifacto.app. Rewriting on the
-  # way out keeps one copy of the document instead of a template and a copy.
+  # examples pointed at *this* deployment, not at the public instance. Rewriting
+  # on the way out keeps one copy of the document instead of a template and a copy.
   SKILL_PATH = Rails.root.join("skills/artifacto/SKILL.md")
-  SKILL_ORIGIN = "https://artifacto.app".freeze
+  SKILL_ORIGIN = "https://artifacto.igorkasyanchuk.com".freeze
   SKILL_SAMPLE_SLUG = "k3Fp9wQz2mVnB7xLd4Rs1T".freeze
   SKILL_SAMPLE_RAW_URL = "https://k3Fp9wQz2mVnB7xLd4Rs1T.artifactousercontent.com/".freeze
 

@@ -16,11 +16,11 @@ servers:
 #
 # Don't use this when deploying to multiple web servers (then you have to terminate SSL at your load balancer).
 #
-# Deliberately no `host:` and no `ssl:`. The proxy has to answer for the app host
-# AND for every <slug>.CONTENT_HOST subdomain, and Let's Encrypt cannot issue that
-# wildcard over HTTP-01. TLS is terminated at Cloudflare and the last hop runs
-# through a Cloudflare Tunnel (the `tunnel` accessory below), so this box needs no
-# certificate and no inbound port open to the internet at all.
+# Deliberately no `host:` and no `ssl:`. TLS terminates at Cloudflare and the last
+# hop runs through a Cloudflare Tunnel (the `tunnel` accessory below), so this box
+# needs no certificate and no inbound port open to the internet at all. It also
+# leaves the proxy host-agnostic, which is what the two-zone layout would need:
+# Let's Encrypt cannot issue the <slug>.CONTENT_HOST wildcard over HTTP-01.
 proxy:
   app_port: 80
 
@@ -43,16 +43,23 @@ env:
     - ARTIFACTO_DATABASE_PASSWORD
     - IP_HASH_SECRET        # HMAC key for creator_ip_hash; rotating it orphans existing bans
     - ADMIN_PASSWORD       # only read by db:seed, to bootstrap the first admin
-    - CF_ZONE_ID            # content zone, for purge-on-update
-    - CF_API_TOKEN
+    # Purge-on-update only has something to purge in two-zone mode; uncomment
+    # these together with CONTENT_HOST below.
+    # - CF_ZONE_ID          # content zone, for purge-on-update
+    # - CF_API_TOKEN
     - AR_ENCRYPTION_PRIMARY_KEY        # encrypts artifacts.creator_ip
     - AR_ENCRYPTION_DETERMINISTIC_KEY
     - AR_ENCRYPTION_SALT
     - SENTRY_DSN            # error tracking; unset it and the SDK stays off
   clear:
-    # Both unset would run single-origin mode; this box is the two-zone layout.
-    APP_ORIGIN: https://artifacto.app
-    CONTENT_HOST: artifactousercontent.com
+    # Single-origin mode: CONTENT_HOST is deliberately unset, so artifacts are
+    # served from /raw/<slug> on the app host and RawController drops
+    # allow-same-origin to give each one an opaque origin. APP_ORIGIN is not
+    # required here, but pinning it keeps the artifact's postMessage target exact
+    # instead of "*". Set CONTENT_HOST to a second registrable domain — never a
+    # subdomain of the app — to move this box to the two-zone layout.
+    APP_ORIGIN: https://artifacto.igorkasyanchuk.com
+    # CONTENT_HOST: artifactousercontent.com
     MAX_UPLOAD_BYTES: 5242880
     DEFAULT_TTL_DAYS: 14
     DB_HOST: artifacto-db
@@ -153,7 +160,8 @@ accessories:
       - data:/data
 
   # Outbound-only connection to Cloudflare: no port 80/443 exposed on the host.
-  # Point both public hostnames at http://kamal-proxy:80 in the tunnel config.
+  # Point the app hostname at http://kamal-proxy:80 in the tunnel config — plus
+  # the wildcard content hostname, if CONTENT_HOST is ever set.
   tunnel:
     image: cloudflare/cloudflared:latest
     host: 1.2.3.4
