@@ -11,7 +11,7 @@ require "base64"
 # to — and a Markdown artifact is served a csp_hash that does not match its own
 # inline script, which blocks the script entirely.
 module AgentInjector
-  VERSION = 8
+  VERSION = 10
   OPEN_MARKER = "<!--artifacto:agent-->"
   CLOSE_MARKER = "<!--/artifacto:agent-->"
   BLOCK = /#{Regexp.escape(OPEN_MARKER)}.*?#{Regexp.escape(CLOSE_MARKER)}\n?/m

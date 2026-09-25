@@ -8,13 +8,16 @@ single-origin mode, so artifacts share an origin with the app and lean on the
 sandbox instead of a second domain. Read **Single-origin mode** below before
 putting anything that matters there.
 
-Built for AI agents first: `skills/artifacto/SKILL.md` teaches Claude Code, Cursor
-or anything else that can run `curl` to publish and then update the same link.
-A running instance serves it at `/skill`, rewritten to point at that instance:
+Built for AI agents first: `skills/artifacto/SKILL.md` teaches Claude Code, Codex,
+Cursor or anything else that can run `curl` to publish and then update the same link.
+A running instance serves it at `/skill`, rewritten to point at that instance. The
+file is the same for every agent; only the directory it is read from differs —
+`.claude/skills` for Claude Code, `.agents/skills` for Codex:
 
 ```bash
-mkdir -p .claude/skills/artifacto
-curl -fsS https://your-app.example.com/skill -o .claude/skills/artifacto/SKILL.md
+DIR=.claude/skills   # or .agents/skills for Codex
+mkdir -p $DIR/artifacto
+curl -fsS https://your-app.example.com/skill -o $DIR/artifacto/SKILL.md
 ```
 
 `-f` there so a failed fetch does not write an error page into the skill file. Every

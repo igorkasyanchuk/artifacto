@@ -22,7 +22,8 @@ export default class extends Controller {
 
   async upload(file) {
     this.errorTarget.classList.add("hidden")
-    this.dropTarget.textContent = `Uploading ${file.name}…`
+    this.dropTarget.classList.add("is-busy")
+    this.dropTarget.textContent = `uploading ${file.name}…`
 
     const body = new FormData()
     body.append("file", file)
@@ -46,6 +47,8 @@ export default class extends Controller {
       this.errorTarget.textContent = error.message
       this.errorTarget.classList.remove("hidden")
       this.dropTarget.textContent = "Drop an HTML or Markdown file, or click to pick one"
+    } finally {
+      this.dropTarget.classList.remove("is-busy")
     }
   }
 }

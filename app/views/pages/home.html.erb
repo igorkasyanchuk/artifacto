@@ -1,141 +1,203 @@
 <% content_for :body_class, "home" %>
 
 <header class="top">
-  <a class="brand" href="<%= root_path %>">
-    <%= image_tag "/icon.svg", alt: "" %>
-    <span>artifacto<span class="cursor" aria-hidden="true">_</span></span>
-  </a>
-  <nav aria-label="Sections">
-    <a href="#agents">agents</a>
-    <a href="#api">api</a>
-    <a href="#sandbox">sandbox</a>
-    <a href="https://github.com/igorkasyanchuk/artifacto">source ↗</a>
-  </nav>
+  <div class="top-inner">
+    <a class="brand" href="<%= root_path %>">
+      <%= image_tag "/icon.svg", alt: "" %>
+      <span>artifacto<span class="cursor" aria-hidden="true">_</span></span>
+    </a>
+    <nav aria-label="Sections">
+      <a href="#upload">upload</a>
+      <a href="#agents">agents</a>
+      <a href="#api">api</a>
+      <a href="#sandbox">sandbox</a>
+    </nav>
+    <a class="btn gh" href="https://github.com/igorkasyanchuk/artifacto">github ↗</a>
+  </div>
 </header>
 
-<main class="wrap narrow">
-  <section class="hero">
-    <p class="kicker">// throwaway hosting for the pages your agents make</p>
-    <h1>Drop a file.<br><em>Get a link.</em></h1>
-    <p class="lede">
-      Self-contained HTML or Markdown, up to <%= @max_mb %> MB. No account.
-      Gone in <%= @ttl_days %> days. Readers pin comments to any spot on the page,
-      and the agent that published it reads them back over the API.
-    </p>
-    <ul class="facts">
-      <li>no signup</li>
-      <li>sandboxed</li>
-      <li><%= @ttl_days %>-day ttl</li>
-      <li>comments</li>
-      <li>open source</li>
+<main>
+  <section class="hero wrap">
+    <div class="hero-copy">
+      <p class="kicker"><span class="tag">oss</span> throwaway hosting for the pages your agents make</p>
+      <h1>Drop a file.<br><em>Get a link.</em></h1>
+      <p class="lede">
+        Self-contained HTML or Markdown in, a shareable URL out. Readers pin comments
+        to any spot on the page, and the agent that published it reads them back.
+      </p>
+      <p class="cta">
+        <a class="btn primary" href="#upload">upload a file</a>
+        <a class="btn" href="#agents">install the skill →</a>
+      </p>
+      <dl class="stats">
+        <div><dt>max size</dt><dd><%= @max_mb %> MB</dd></div>
+        <div><dt>lives for</dt><dd><%= @ttl_days %> days</dd></div>
+        <div><dt>signup</dt><dd>none</dd></div>
+      </dl>
+    </div>
+
+    <%# Decorative transcript; the same flow is spelled out in text further down. %>
+    <div class="term demo" aria-hidden="true">
+      <div class="term-bar">
+        <span class="dots"><i></i><i></i><i></i></span>
+        <span>agent — zsh</span>
+      </div>
+      <div class="term-body">
+        <p><span class="p">❯</span> publish report.html as an artifact</p>
+        <p class="dim">● uploading report.html · 42 KB</p>
+        <p><span class="ok">✓</span> published <span class="link"><%= request.host %>/a/k3Fp9wQz</span></p>
+        <p class="dim">  expires in <%= @ttl_days %> days · edit token saved</p>
+        <p>&nbsp;</p>
+        <p><span class="p">❯</span> any feedback on it?</p>
+        <p><span class="ok">✓</span> 2 comments</p>
+        <p class="dim">  ├ ana  on “Churn down to 2.1%”</p>
+        <p>  │ <span class="q">Source for this number?</span></p>
+        <p class="dim">  └ sam  on “Q3 revenue report”</p>
+        <p>    <span class="q">Title should say FY26.</span><span class="caret"></span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" id="upload">
+    <p class="eyebrow">01 · upload</p>
+    <div class="term" data-controller="upload">
+      <div class="term-bar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>~/artifacto — upload</span>
+      </div>
+
+      <div class="term-body">
+        <div class="drop" role="button" tabindex="0"
+             data-upload-target="drop"
+             data-action="click->upload#open keydown.enter->upload#open keydown.space->upload#open:prevent dragover->upload#over dragleave->upload#leave drop->upload#drop">
+          Drop an HTML or Markdown file, or click to pick one
+        </div>
+        <input type="file" class="hidden" accept=".html,.htm,.md,.markdown"
+               data-upload-target="input" data-action="upload#picked">
+
+        <div class="grid">
+          <div>
+            <label for="title">title</label>
+            <input type="text" id="title" placeholder="optional" data-upload-target="title">
+          </div>
+          <div>
+            <label for="ttl">expires-in-days</label>
+            <input type="number" id="ttl" min="1" max="30" value="<%= @ttl_days %>" data-upload-target="ttl">
+          </div>
+          <div>
+            <label for="pin">pin</label>
+            <input type="password" id="pin" autocomplete="new-password" placeholder="optional, <%= Artifact::PIN_MIN_LENGTH %>+ chars"
+                   minlength="<%= Artifact::PIN_MIN_LENGTH %>" data-upload-target="pin">
+          </div>
+        </div>
+
+        <p class="stack">
+          <label class="check">
+            <input type="checkbox" data-upload-target="network">
+            --allow-network
+          </label>
+          <span class="note">
+            Off by default: the artifact cannot call out, so nothing a viewer types can leave the page.
+            Only turn this on for artifacts that genuinely fetch data.
+          </span>
+        </p>
+
+        <p class="warn hidden" data-upload-target="error"></p>
+
+        <div class="hidden stack result" data-upload-target="result">
+          <p><span class="ok">✓</span> <strong>published</strong> <a data-upload-target="url" href="#" target="_blank" rel="noopener"></a></p>
+          <p class="note">edit token — shown once, keep it to update or delete this artifact:</p>
+          <pre><code data-upload-target="token"></code></pre>
+        </div>
+      </div>
+      <div class="term-status" aria-hidden="true">
+        <span class="mode">upload</span>
+        <span>html · md</span>
+        <span class="spacer"></span>
+        <span>≤ <%= @max_mb %> MB</span>
+        <span>ttl <%= @ttl_days %>d</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <ul class="features">
+      <li><b>sandboxed</b><span>Every page runs in an opaque-origin frame with no network, no forms, no popups.</span></li>
+      <li><b>pinned comments</b><span>Readers click any spot and leave a note. Pins follow the text across edits.</span></li>
+      <li><b>agent round-trip</b><span>The publishing agent reads feedback over the API and ships the next version.</span></li>
+      <li><b>same url, new version</b><span>An edit token keeps updates on one link. No redeploys, no dashboards.</span></li>
+      <li><b>pin-lock</b><span>Optional PIN for anything that should not be read by whoever finds the link.</span></li>
+      <li><b>self-destructs</b><span>Gone after <%= @ttl_days %> days by default. Links expire — that is the point.</span></li>
     </ul>
   </section>
 
-  <div class="term" data-controller="upload">
-    <div class="term-bar">
-      <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span>~/artifacto — upload</span>
-    </div>
+  <section class="wrap" id="agents">
+    <p class="eyebrow">02 · agents</p>
+    <h2>from your agent</h2>
 
-    <div class="term-body">
-      <div class="drop" role="button" tabindex="0"
-           data-upload-target="drop"
-           data-action="click->upload#open keydown.enter->upload#open keydown.space->upload#open:prevent dragover->upload#over dragleave->upload#leave drop->upload#drop">
-        Drop an HTML or Markdown file, or click to pick one
-      </div>
-      <input type="file" class="hidden" accept=".html,.htm,.md,.markdown"
-             data-upload-target="input" data-action="upload#picked">
+    <ol class="steps">
+      <li>
+        <p>Install the skill once. It is already pointed at this server.</p>
+        <%# One SKILL.md for every agent; only the directory it is read from differs. %>
+        <% { "Claude Code" => ".claude/skills", "Codex" => ".agents/skills" }.each do |agent, dir| %>
+          <p class="eyebrow"><%= agent %></p>
+          <div class="code" data-controller="clipboard">
+            <pre class="shell"><code data-clipboard-target="source">mkdir -p <%= dir %>/artifacto &amp;&amp; curl -sf <%= skill_url %> -o <%= dir %>/artifacto/SKILL.md</code></pre>
+            <p class="code-actions">
+              <button data-clipboard-target="button" data-action="clipboard#copy">copy</button>
+              <%= link_to "SKILL.md ↓", skill_path, class: "btn" %>
+            </p>
+          </div>
+        <% end %>
+      </li>
+      <li>
+        <p>Ask your agent to "publish this as an artifact". It uploads, hands you the link,
+        and keeps the edit token so the next version lands on the same URL.</p>
+      </li>
+      <li>
+        <p>Share the link. Comments come back through the same skill.</p>
+      </li>
+    </ol>
 
-      <div class="grid">
-        <div>
-          <label for="title">title</label>
-          <input type="text" id="title" placeholder="optional" data-upload-target="title">
-        </div>
-        <div>
-          <label for="ttl">expires-in-days</label>
-          <input type="number" id="ttl" min="1" max="30" value="<%= @ttl_days %>" data-upload-target="ttl">
-        </div>
-        <div>
-          <label for="pin">pin</label>
-          <input type="password" id="pin" autocomplete="new-password" placeholder="optional, <%= Artifact::PIN_MIN_LENGTH %>+ chars"
-                 minlength="<%= Artifact::PIN_MIN_LENGTH %>" data-upload-target="pin">
-        </div>
-      </div>
+    <p class="note">
+      Works with Claude Code, Codex, Cursor, or anything else that can run <code>curl</code>.
+      Other agents read skills from their own directory — change the path to match,
+      or paste the file into the agent's instructions.
+    </p>
+  </section>
 
-      <p class="stack">
-        <label class="check">
-          <input type="checkbox" data-upload-target="network">
-          --allow-network
-        </label>
-        <span class="note">
-          Off by default: the artifact cannot call out, so nothing a viewer types can leave the page.
-          Only turn this on for artifacts that genuinely fetch data.
-        </span>
-      </p>
+  <section class="wrap" id="api">
+    <p class="eyebrow">03 · api</p>
+    <h2>or hit the api</h2>
 
-      <p class="warn hidden" data-upload-target="error"></p>
-
-      <div class="hidden stack result" data-upload-target="result">
-        <p><strong>link</strong> <a data-upload-target="url" href="#"></a></p>
-        <p class="note">edit token — shown once, keep it to update or delete this artifact:</p>
-        <pre><code data-upload-target="token"></code></pre>
-      </div>
-    </div>
-  </div>
-
-  <h2 id="agents">from your agent</h2>
-
-  <ol class="steps">
-    <li>
-      <p>Install the skill once. It is already pointed at this server.</p>
-      <div data-controller="clipboard">
-        <pre class="shell"><code data-clipboard-target="source">mkdir -p .claude/skills/artifacto &amp;&amp; curl -sf <%= skill_url %> -o .claude/skills/artifacto/SKILL.md</code></pre>
-        <p class="stack">
-          <button data-clipboard-target="button" data-action="clipboard#copy">copy</button>
-          <%= link_to "SKILL.md ↓", skill_path, class: "btn" %>
-        </p>
-      </div>
-    </li>
-    <li>
-      <p>Ask your agent to "publish this as an artifact". It uploads, hands you the link,
-      and keeps the edit token so the next version lands on the same URL.</p>
-    </li>
-    <li>
-      <p>Share the link. Comments come back through the same skill.</p>
-    </li>
-  </ol>
-
-  <p class="note">
-    Works with Claude Code, Cursor, or anything else that can run <code>curl</code>.
-    Other agents read skills from a different directory — change the path to match.
-  </p>
-
-  <h2 id="api">or hit the api</h2>
-
-  <pre class="shell"><code>curl -sf <%= root_url %>api/v1/artifacts \
+    <pre class="shell"><code>curl -sf <%= root_url %>api/v1/artifacts \
   -F "file=@page.html" \
   -F "title=My report" \
   -F "expires_in_days=<%= @ttl_days %>"</code></pre>
 
-  <p class="note">
-    The response carries <code>url</code> and a one-time <code>edit_token</code>.
-    Update the same link with
-    <code>curl -X PUT -H "Authorization: Bearer $TOKEN" -F "file=@page.html" <%= root_url %>api/v1/artifacts/SLUG</code>,
-    delete it with <code>DELETE</code>, or push the expiry out with
-    <code>PATCH .../extend</code>.
-  </p>
+    <p class="note">
+      The response carries <code>url</code> and a one-time <code>edit_token</code>.
+      Update the same link with
+      <code>curl -X PUT -H "Authorization: Bearer $TOKEN" -F "file=@page.html" <%= root_url %>api/v1/artifacts/SLUG</code>,
+      delete it with <code>DELETE</code>, or push the expiry out with
+      <code>PATCH .../extend</code>.
+    </p>
+  </section>
 
-  <h2 id="sandbox">how artifacts are contained</h2>
-  <ul class="checks">
-    <% if Rails.configuration.x.content_host %>
-      <li>Every artifact is served from its own subdomain of a separate domain — no shared origin, no access to cookies here.</li>
-    <% else %>
-      <li>Every artifact runs in a sandboxed frame with an opaque origin — it cannot read this site's cookies or storage, and no two artifacts share any.</li>
-    <% end %>
-    <li><code>connect-src 'none'</code> and <code>form-action 'none'</code>: no fetch, no form posts.</li>
-    <li>No popups, no downloads, no top-level navigation — and the frame stays sandboxed even if it navigates itself.</li>
-    <li>Only inline, self-contained assets load. External scripts, styles and images are blocked.</li>
-  </ul>
+  <section class="wrap" id="sandbox">
+    <p class="eyebrow">04 · sandbox</p>
+    <h2>how artifacts are contained</h2>
+    <ul class="checks">
+      <% if Rails.configuration.x.content_host %>
+        <li>Every artifact is served from its own subdomain of a separate domain — no shared origin, no access to cookies here.</li>
+      <% else %>
+        <li>Every artifact runs in a sandboxed frame with an opaque origin — it cannot read this site's cookies or storage, and no two artifacts share any.</li>
+      <% end %>
+      <li><code>connect-src 'none'</code> and <code>form-action 'none'</code>: no fetch, no form posts.</li>
+      <li>No popups, no downloads, no top-level navigation — and the frame stays sandboxed even if it navigates itself.</li>
+      <li>Only inline, self-contained assets load. External scripts, styles and images are blocked.</li>
+    </ul>
+  </section>
 </main>
 
 <footer class="foot">

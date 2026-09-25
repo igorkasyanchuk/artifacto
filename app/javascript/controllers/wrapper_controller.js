@@ -4,13 +4,17 @@ import { Controller } from "@hotwired/stimulus"
 // this browser so the same person does not retype it on every artifact.
 const AUTHOR_KEY = "artifacto:author"
 
-// Shown the first time comment mode is turned on, and never again: after that
-// the cursor inside the frame is the reminder.
-const HINT_KEY = "artifacto:hinted"
-const HINT_TEXT = "Comment mode is on — click anything in the page to leave a comment there. " +
-  "Press Comment again, or Escape, to stop."
-const HINT_MS = 6000
 const FLASH_MS = 2500
+
+// "3h ago" for the byline, the full date in its title.
+const RELATIVE = new Intl.RelativeTimeFormat(undefined, { numeric: "auto", style: "narrow" })
+const UNITS = [ [ "year", 31536000 ], [ "month", 2592000 ], [ "day", 86400 ], [ "hour", 3600 ], [ "minute", 60 ] ]
+const ago = (date) => {
+  // Clamped: a server clock ahead of this one must not print "in 3 min".
+  const seconds = Math.min(0, (date - Date.now()) / 1000)
+  const [ unit, size ] = UNITS.find(([ , size ]) => Math.abs(seconds) >= size) || [ "second", 1 ]
+  return Math.abs(seconds) < 45 ? "just now" : RELATIVE.format(Math.round(seconds / size), unit)
+}
 
 // Storage is a convenience here — a remembered name, a remembered edit token —
 // and every access to it throws outright where the browser has denied it. None
@@ -30,7 +34,7 @@ const remember = (key, value) => {
 export default class extends Controller {
   static targets = [
     "frame", "overlay", "panel", "quote", "list", "body", "author", "count", "toggle", "error",
-    "drawer", "entries", "toast", "pins"
+    "drawer", "entries", "toast", "pins", "status", "listToggle"
   ]
   static values = { slug: String, token: String }
 
@@ -67,13 +71,26 @@ export default class extends Controller {
   // inside the frame never reaches this document, but every one of these layers
   // leaves focus on this side — the thread focuses its own textarea — so there is
   // nothing to forward and no reason to touch the artifact's hook for it.
-  escape(event) {
-    if (event.key !== "Escape") return
+  //
+  // c / l / p are the bar's shortcuts, and only while nobody is typing: the
+  // thread's own fields, and the report form's select, keep their keys.
+  key(event) {
+    if (event.key === "Escape") return this.escape()
+    if (event.metaKey || event.ctrlKey || event.altKey || !this.hasFrameTarget) return
+    if (event.target.closest?.("input, textarea, select, [contenteditable]")) return
 
+    const action = { c: "toggle", l: "drawer", p: "togglePins" }[event.key]
+    if (!action) return
+
+    event.preventDefault()
+    this[action]()
+  }
+
+  escape() {
     const menu = this.element.querySelector(".menu[open]")
     if (menu) menu.open = false
     else if (this.hasPanelTarget && !this.panelTarget.hidden) this.close()
-    else if (this.hasDrawerTarget && !this.drawerTarget.hidden) this.drawerTarget.hidden = true
+    else if (this.hasDrawerTarget && !this.drawerTarget.hidden) this.drawer()
     else if (this.mode) this.toggle()
   }
 
@@ -98,8 +115,8 @@ export default class extends Controller {
   get endpoint() { return this.url() }
 
   note(text) {
-    this.countTarget.textContent = text
-    this.countTarget.hidden = !text
+    this.statusTarget.textContent = text
+    this.statusTarget.hidden = !text
   }
 
   async load() {
@@ -138,7 +155,8 @@ export default class extends Controller {
       this.groups.set(comment.selector, group)
     }
 
-    this.note(comments.length ? (comments.length === 1 ? "1 comment" : `${comments.length} comments`) : "")
+    this.countTarget.textContent = comments.length
+    this.countTarget.hidden = !comments.length
     this.drawPins()
     this.drawEntries()
     this.sendAnchors()
@@ -157,7 +175,8 @@ export default class extends Controller {
       pin.hidden = true
       pin.textContent = group.comments.length
       pin.title = group.quote || ""
-      pin.addEventListener("click", () => this.openPanel({ ...group, x: pin.offsetLeft, y: pin.offsetTop }))
+      pin.setAttribute("aria-label", `${group.comments.length} on “${(group.quote || "this spot").slice(0, 40)}”`)
+      pin.addEventListener("click", () => this.openPanel({ ...group, x: pin.offsetLeft + 28, y: pin.offsetTop }))
       this.overlayTarget.append(pin)
       this.pins.set(group.key, pin)
     }
@@ -237,8 +256,11 @@ export default class extends Controller {
     if (!data || typeof data.type !== "string" || !data.type.startsWith("artifacto:")) return
 
     if (data.type === "artifacto:ready") this.sendAnchors()
-    else if (data.type === "artifacto:anchor") this.openPanel({ selector: data.selector, quote: data.quote, fx: data.fx, fy: data.fy, x: data.x, y: data.y })
-    else if (data.type === "artifacto:positions" && Array.isArray(data.positions)) this.place(data.positions)
+    else if (data.type === "artifacto:anchor") this.compose(data)
+    else if (data.type === "artifacto:positions" && Array.isArray(data.positions)) {
+      this.place(data.positions)
+      if (data.revealed != null && data.revealed === this.revealing) this.landed()
+    }
   }
 
   // targetOrigin "*": in single-origin mode the frame has an opaque origin and
@@ -278,25 +300,26 @@ export default class extends Controller {
     this.place(unplaced.map((key) => ({ key, found: false })))
   }
 
+  // The mode is shown on this side too — the modeline and the stage outline hang
+  // off .is-commenting — because the cursor that says so lives in the frame, and
+  // a reader whose pointer is on the bar cannot see it.
   toggle() {
     this.mode = !this.mode
     this.post({ type: "artifacto:mode", comment: this.mode })
-    this.toggleTarget.classList.toggle("primary", this.mode)
-    this.toggleTarget.textContent = this.mode ? "Click a spot…" : "Comment"
-    if (this.mode) return this.hint()
-
-    this.hideToast()
-    this.close()
+    this.element.classList.toggle("is-commenting", this.mode)
+    this.toggleTarget.setAttribute("aria-pressed", this.mode)
+    if (!this.mode) this.close()
   }
 
-  // Comment mode is a state the reader cannot see from this side of the frame —
-  // the cursor that announces it lives in the artifact's document. One toast the
-  // first time explains it; after that the cursor has done the teaching.
-  hint() {
-    if (recall(HINT_KEY)) return
-
-    remember(HINT_KEY, "seen")
-    this.flash(HINT_TEXT, HINT_MS)
+  // A new spot: a ghost pin marks exactly where the click landed, so the reader
+  // can see what the comment they are typing will point at.
+  compose({ selector, quote, fx, fy, x, y }) {
+    this.ghost ||= Object.assign(document.createElement("span"), { className: "pin is-new", textContent: "+" })
+    // Same nudge as place(), so the saved pin lands where the ghost stood.
+    this.ghost.style.left = `${Math.max(0, x - 20)}px`
+    this.ghost.style.top = `${Math.max(0, y - 2)}px`
+    this.overlayTarget.append(this.ghost)
+    this.openPanel({ selector, quote, fx, fy, x: x + 32, y: y - 8 })
   }
 
   // One toast for everything that has something to say and nowhere to say it.
@@ -317,14 +340,26 @@ export default class extends Controller {
     if (this.hasToastTarget) this.toastTarget.textContent = ""
   }
 
-  openPanel({ selector, quote, fx, fy, comments = [], x, y }) {
+  openPanel({ key, selector, quote, fx, fy, comments = [], x, y }) {
+    if (key != null) this.ghost?.remove()
+    this.revealing = null
+    for (const [ pinKey, pin ] of this.pins) pin.classList.toggle("is-active", pinKey === key)
+
     this.pending = { selector, quote, anchor_x: fx, anchor_y: fy }
     this.errorTarget.hidden = true
-    this.quoteTarget.textContent = quote ? `“${quote.slice(0, 80)}”` : "this spot"
+    this.quoteTarget.textContent = quote ? quote.slice(0, 120) : "this spot"
     this.listTarget.replaceChildren(...comments.map((comment) => this.commentNode(comment)))
+    this.listTarget.hidden = !comments.length
+    this.bodyTarget.placeholder = comments.length ? "Reply…" : "Leave a comment…"
 
-    const box = this.overlayTarget.getBoundingClientRect()
     this.panelTarget.hidden = false
+    this.movePanel(x, y)
+    this.bodyTarget.value = ""
+    this.bodyTarget.focus()
+  }
+
+  movePanel(x, y) {
+    const box = this.overlayTarget.getBoundingClientRect()
 
     // Keep the panel inside the stage. A stage that has not been laid out yet
     // measures zero, and clamping against that would pin every panel to the
@@ -333,32 +368,48 @@ export default class extends Controller {
     const maxTop = box.height ? Math.max(8, box.height - this.panelTarget.offsetHeight - 8) : Infinity
     this.panelTarget.style.left = `${Math.min(Math.max(8, x || 0), maxLeft)}px`
     this.panelTarget.style.top = `${Math.min(Math.max(8, y || 0), maxTop)}px`
-    this.bodyTarget.value = ""
-    this.bodyTarget.focus()
   }
 
-  // The drawer prints the byline on its own meta row, so it asks for the body alone.
-  commentNode(comment, byline = true) {
-    const item = document.createElement("p")
+  // Byline row, then the body. Everything the reader wrote goes in as text.
+  commentNode(comment) {
+    const author = comment.author || "anonymous"
+    const created = new Date(comment.created_at)
+
+    const avatar = document.createElement("span")
+    avatar.className = "avatar"
+    avatar.textContent = [ ...author ][0].toUpperCase()
+    const name = document.createElement("b")
+    name.textContent = author
+    const when = document.createElement("time")
+    when.dateTime = comment.created_at
+    when.title = created.toLocaleString()
+    when.textContent = ago(created)
+
+    const head = document.createElement("div")
+    head.className = "comment-head"
+    head.append(avatar, name, when)
+
+    const body = document.createElement("p")
+    body.className = "comment-body"
+    body.textContent = comment.body
+
+    const item = document.createElement("div")
     item.className = "comment"
-    item.textContent = comment.body
-    if (byline) {
-      const when = document.createElement("span")
-      when.className = "note"
-      when.textContent = ` — ${this.by(comment)}`
-      item.append(when)
-    }
+    item.append(head, body)
     return item
   }
 
-  by(comment) {
-    return `${comment.author || "anonymous"}, ${new Date(comment.created_at).toLocaleDateString()}`
+  // Focus left in a hidden textarea would swallow the bar's shortcuts.
+  close() {
+    if (this.panelTarget.contains(document.activeElement)) document.activeElement.blur()
+    this.panelTarget.hidden = true
+    this.ghost?.remove()
+    for (const pin of this.pins.values()) pin.classList.remove("is-active")
+    this.pending = null
+    this.revealing = null
   }
 
-  close() {
-    this.panelTarget.hidden = true
-    this.pending = null
-  }
+  send() { this.panelTarget.requestSubmit() }
 
   async submit(event) {
     event.preventDefault()
@@ -394,32 +445,33 @@ export default class extends Controller {
 
   showPins(visible) {
     this.overlayTarget.hidden = !visible
-    if (this.hasPinsTarget) this.pinsTarget.textContent = visible ? "Hide pins" : "Show pins"
+    if (this.hasPinsTarget) this.pinsTarget.setAttribute("aria-pressed", visible)
   }
 
   // Side panel: every comment on the artifact, including the ones whose anchor
   // no longer resolves and whose pin is therefore parked in the corner.
   drawer() {
     this.drawerTarget.hidden = !this.drawerTarget.hidden
+    if (this.hasListToggleTarget) this.listToggleTarget.setAttribute("aria-pressed", !this.drawerTarget.hidden)
   }
 
   drawEntries() {
     if (!this.hasEntriesTarget) return
 
-    const entries = [ ...this.groups.values() ]
-      .flatMap((group) => group.comments.map((comment) => this.entryNode(group, comment)))
+    const entries = [ ...this.groups.values() ].map((group) => this.entryNode(group))
 
     if (!entries.length) {
       const empty = document.createElement("p")
       empty.className = "empty"
-      empty.textContent = "No comments yet. Click Comment, then click a spot in the page."
+      empty.textContent = "No threads yet. Press c, then click any spot on the page."
       entries.push(empty)
     }
 
     this.entriesTarget.replaceChildren(...entries)
   }
 
-  entryNode(group, comment) {
+  // One card per thread: the spot, then every comment left on it.
+  entryNode(group) {
     const entry = document.createElement("article")
     entry.className = "entry"
 
@@ -428,32 +480,44 @@ export default class extends Controller {
     // reachable by keyboard too.
     const quote = document.createElement("button")
     quote.type = "button"
-    quote.className = "note quote"
-    quote.textContent = group.quote ? `“${group.quote.slice(0, 80)}”` : "this spot"
+    quote.className = "quote"
+    quote.textContent = group.quote ? group.quote.slice(0, 80) : "this spot"
     quote.addEventListener("click", (event) => { event.stopPropagation(); this.jump(group) })
+    entry.append(quote)
 
-    const meta = document.createElement("p")
-    meta.className = "meta"
-    const who = document.createElement("span")
-    who.className = "note"
-    who.textContent = this.by(comment)
-    const spacer = document.createElement("span")
-    spacer.className = "spacer"
-    const remove = document.createElement("button")
-    remove.type = "button"
-    remove.textContent = "Delete"
-    remove.addEventListener("click", (event) => { event.stopPropagation(); this.destroy(comment) })
-    meta.append(who, spacer, remove)
+    for (const comment of group.comments) {
+      const remove = document.createElement("button")
+      remove.type = "button"
+      remove.className = "delete"
+      remove.textContent = "delete"
+      remove.addEventListener("click", (event) => { event.stopPropagation(); this.destroy(comment) })
 
-    entry.append(quote, this.commentNode(comment, false), meta)
+      const node = this.commentNode(comment)
+      node.firstChild.append(remove)
+      entry.append(node)
+    }
+
     entry.addEventListener("click", () => this.jump(group))
     return entry
   }
 
+  // The thread opens where its pin is now, and the frame is asked to scroll its
+  // spot into view; when the answer comes back, landed() moves the thread along
+  // with the pin. A spot that no longer resolves just stays where it is parked.
   jump(group) {
     const pin = this.pins.get(group.key)
     this.showPins(true)
-    this.openPanel({ ...group, x: pin?.offsetLeft ?? 8, y: pin?.offsetTop ?? 8 })
+    this.openPanel({ ...group, x: (pin?.offsetLeft ?? 8) + 28, y: pin?.offsetTop ?? 8 })
+    this.revealing = group.key
+    this.post({ type: "artifacto:reveal", key: group.key, fy: group.fy })
+  }
+
+  landed() {
+    const pin = this.pins.get(this.revealing)
+    this.revealing = null
+    if (!pin || pin.hidden || this.panelTarget.hidden) return
+
+    this.movePanel(pin.offsetLeft + 28, pin.offsetTop)
   }
 
   // ponytail: prompt() + localStorage, not a login. The edit token handed out at

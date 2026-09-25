@@ -143,7 +143,9 @@
     }
   }
 
-  function report() {
+  // revealed names the anchor a reveal just scrolled to, so the wrapper can tell
+  // this report from one a scroll queued before the reveal arrived.
+  function report(revealed) {
     var positions = [];
     for (var i = 0; i < anchors.length; i++) {
       var anchor = anchors[i];
@@ -168,7 +170,7 @@
         height: rect.height
       });
     }
-    send({ type: "artifacto:positions", positions: positions });
+    send({ type: "artifacto:positions", positions: positions, revealed: revealed });
   }
 
   var retryTimer = null;
@@ -214,8 +216,37 @@
   // fallback for a browser that refuses the image.
   var COMMENT_CURSOR = "url(data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27" +
     "%20width=%2728%27%20height=%2728%27%3E%3Cpath%20d=%27M3%203h22v16H14l-6%206v-6H3z%27" +
-    "%20fill=%27%232563eb%27%20stroke=%27white%27%20stroke-width=%272%27" +
+    "%20fill=%27%230a0c0b%27%20stroke=%27%237ee081%27%20stroke-width=%272%27" +
     "%20stroke-linejoin=%27round%27/%3E%3C/svg%3E) 8 25, crosshair";
+
+  // In comment mode the element under the pointer gets an outline, so the reader
+  // sees what a click would anchor to before making it. Written to the element's
+  // own style and put back exactly as found; attributes are not observed below,
+  // so this never counts as a mutation.
+  var hovered = null;
+  var saved = null;
+
+  function highlight(el) {
+    if (hovered) {
+      hovered.style.outline = saved[0];
+      hovered.style.outlineOffset = saved[1];
+    }
+    hovered = el && el.style ? el : null;
+    if (!hovered) return;
+
+    saved = [hovered.style.outline, hovered.style.outlineOffset];
+    hovered.style.outline = "2px dashed #7ee081";
+    hovered.style.outlineOffset = "2px";
+  }
+
+  document.addEventListener("mouseover", function (event) {
+    if (commentMode) highlight(event.target);
+  }, true);
+
+  // Leaving the frame for the bar or the thread panel is not a target any more.
+  document.documentElement.addEventListener("mouseleave", function () {
+    highlight(null);
+  });
 
   window.addEventListener("message", function (event) {
     if (event.source !== window.parent) return;
@@ -225,12 +256,48 @@
     if (data.type === "artifacto:mode") {
       commentMode = !!data.comment;
       document.documentElement.style.cursor = commentMode ? COMMENT_CURSOR : "";
+      if (!commentMode) highlight(null);
     } else if (data.type === "artifacto:anchors") {
       anchors = Array.isArray(data.anchors) ? data.anchors : [];
       resolveAll(false);
       report();
+    } else if (data.type === "artifacto:reveal") {
+      reveal(data.key, data.fy);
     }
   });
+
+  // A thread picked from the side panel: bring its spot into view. The recorded
+  // point decides, not the element — an element taller than the window, <body>
+  // above all, centred on its own middle is nowhere near what was commented on.
+  // Instant, so the report right after measures where the pin ends up rather
+  // than wherever an artifact's smooth scrolling happens to be mid-way.
+  function reveal(key, fy) {
+    var anchor = null;
+    for (var i = 0; i < anchors.length; i++) {
+      if (anchors[i].key === key) anchor = anchors[i];
+    }
+    if (anchor && !anchored(anchor)) resolve(anchor);
+
+    // A browser that rejects behavior "instant" throws here; the report still
+    // has to go out, or the thread never learns where its pin went.
+    try {
+      if (anchor && anchored(anchor)) bringIntoView(anchor.el, fy);
+    } finally {
+      report(key);
+    }
+  }
+
+  function bringIntoView(el, fy) {
+    var rect = el.getBoundingClientRect();
+    // No recorded point means the pin sits on the element's top corner, so
+    // that corner is what has to come into view.
+    var point = typeof fy === "number" ? fy : 0;
+    if (rect.height > window.innerHeight) {
+      window.scrollBy({ top: rect.top + point * rect.height - window.innerHeight / 2, behavior: "instant" });
+    } else {
+      el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    }
+  }
 
   document.addEventListener("click", onClick, true);
   window.addEventListener("scroll", scheduleReport, true);

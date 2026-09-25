@@ -7,35 +7,45 @@
 <div class="viewer" data-controller="wrapper" data-wrapper-slug-value="<%= @artifact.slug %>"
      data-wrapper-token-value="<%= @unlock_token %>"
      data-action="click@document->wrapper#dismissMenu blur@window->wrapper#dismissMenu
-                  keydown@document->wrapper#escape">
+                  keydown@document->wrapper#key">
   <header class="bar">
     <a class="home-link" href="<%= root_path %>" title="artifacto">
       <%= image_tag "/icon.svg", class: "mark", alt: "artifacto" %>
     </a>
+    <span class="crumb" aria-hidden="true">/</span>
     <strong class="bar-title" title="<%= @artifact.title.presence || "Untitled artifact" %>">
       <%= @artifact.title.presence || "Untitled artifact" %>
     </strong>
 
     <span class="chips">
       <span class="chip <%= "is-warn" if @artifact.ttl_days <= 3 %>">
-        expires in <%= pluralize(@artifact.ttl_days, "day") %>
+        ttl <%= @artifact.ttl_days %>d
       </span>
       <span class="chip"><%= pluralize(@artifact.view_count, "view") %></span>
-      <span class="chip" hidden data-wrapper-target="count"></span>
       <% if @artifact.allow_network? %>
-        <span class="chip is-warn">can make network requests</span>
+        <span class="chip is-warn">network on</span>
       <% end %>
+      <span class="chip is-warn" hidden data-wrapper-target="status"></span>
     </span>
 
     <span class="spacer"></span>
 
     <div class="actions">
       <% unless @needs_pin %>
-        <button data-wrapper-target="toggle" data-action="wrapper#toggle">Comment</button>
-        <button data-wrapper-target="pins" data-action="wrapper#togglePins">Hide pins</button>
-        <button data-action="wrapper#drawer">All comments</button>
+        <div class="seg" role="group" aria-label="Comments">
+          <button class="mode" aria-pressed="false" title="Comment mode (c)"
+                  data-wrapper-target="toggle" data-action="wrapper#toggle">
+            <span class="led" aria-hidden="true"></span>comment<kbd>c</kbd>
+          </button>
+          <button aria-pressed="false" title="All comments (l)" data-wrapper-target="listToggle" data-action="wrapper#drawer">
+            threads<span class="badge" hidden data-wrapper-target="count"></span><kbd>l</kbd>
+          </button>
+          <button aria-pressed="true" title="Show or hide pins (p)" data-wrapper-target="pins" data-action="wrapper#togglePins">
+            pins<kbd>p</kbd>
+          </button>
+        </div>
       <% end %>
-      <button data-action="wrapper#copy">Copy link</button>
+      <button data-action="wrapper#copy" title="Copy link">copy link</button>
 
       <%# Report is a rare, deliberate action and a two-control form: it costs the
           bar more room than it is worth open. A <details> is the whole disclosure. %>
@@ -89,18 +99,30 @@
           ever reports coordinates — it never receives a comment body. %>
       <div class="overlay" data-wrapper-target="overlay"></div>
 
-      <form class="panel thread" hidden data-wrapper-target="panel" data-action="submit->wrapper#submit">
-        <p class="note" data-wrapper-target="quote"></p>
-        <div data-wrapper-target="list"></div>
-        <input type="text" placeholder="Your name (optional)" autocomplete="name"
-               maxlength="<%= Comment::MAX_AUTHOR %>" data-wrapper-target="author">
-        <textarea rows="3" placeholder="Leave a comment" maxlength="<%= Comment::MAX_BODY %>"
-                  data-wrapper-target="body"></textarea>
-        <p class="warn" hidden data-wrapper-target="error"></p>
-        <p class="check">
-          <button class="primary">Comment</button>
-          <button type="button" data-action="wrapper#close">Cancel</button>
-        </p>
+      <%# Says the mode out loud on this side of the frame; the cursor and the
+          hover outline inside it are the other half. %>
+      <p class="modeline" aria-hidden="true">
+        <span class="led"></span> comment mode — click any spot on the page
+        <span class="modeline-exit"><kbd>esc</kbd> to exit</span>
+      </p>
+
+      <form class="thread" hidden data-wrapper-target="panel" data-action="submit->wrapper#submit">
+        <header>
+          <p class="thread-quote" data-wrapper-target="quote"></p>
+          <button type="button" class="icon" aria-label="Close" data-action="wrapper#close">×</button>
+        </header>
+        <div class="thread-list" data-wrapper-target="list"></div>
+        <div class="composer">
+          <textarea rows="3" placeholder="Leave a comment…" maxlength="<%= Comment::MAX_BODY %>"
+                    aria-label="Comment" data-wrapper-target="body"
+                    data-action="keydown.meta+enter->wrapper#send keydown.ctrl+enter->wrapper#send"></textarea>
+          <p class="warn" hidden data-wrapper-target="error"></p>
+          <div class="composer-foot">
+            <input type="text" placeholder="name (optional)" autocomplete="name" aria-label="Your name"
+                   maxlength="<%= Comment::MAX_AUTHOR %>" data-wrapper-target="author">
+            <button class="primary">post<kbd>⌘↵</kbd></button>
+          </div>
+        </div>
       </form>
 
       <%# Every comment on the artifact in one list, whether or not its anchor
@@ -108,9 +130,9 @@
           token that authorises it — not this page. %>
       <aside class="drawer" hidden aria-label="Comments" data-wrapper-target="drawer">
         <header>
-          <strong>Comments</strong>
+          <strong>threads</strong>
           <span class="spacer"></span>
-          <button type="button" data-action="wrapper#drawer">Close</button>
+          <button type="button" class="icon" aria-label="Close" data-action="wrapper#drawer">×</button>
         </header>
         <div class="entries" data-wrapper-target="entries"></div>
       </aside>
