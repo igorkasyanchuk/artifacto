@@ -8,12 +8,13 @@
     by removal. Using the service means agreeing to them.
   </p>
 
-  <h2 id="contact">contact</h2>
+  <%# Optional: an instance without ABUSE_EMAIL has no contact section at all,
+      and every line below that would point at an address drops out with it. %>
   <% if @abuse_email %>
+    <h2 id="contact">contact</h2>
     <p>Abuse reports, takedown requests, legal notices and privacy requests:
       <a href="mailto:<%= @abuse_email %>"><%= @abuse_email %></a>.</p>
   <% end %>
-  <p>Every artifact page also has a <strong>Report</strong> form in its <code>⋯</code> menu.</p>
 
   <h2 id="acceptable-use">acceptable use</h2>
   <p>Do not publish anything that is illegal where you or the server are, or that:</p>
@@ -33,17 +34,18 @@
 
   <h2 id="takedown">reporting and takedown</h2>
   <p>
-    Use the Report form on the artifact, or write to the address above with the artifact's
-    link and why it should come down. Reports are read by a person, and content that
-    breaks the rules above is removed as soon as it is confirmed. If you are the author
-    and think something was removed by mistake, write to the same address.
+    Use the <strong>Report</strong> form in the <code>⋯</code> menu on the artifact<% if @abuse_email %>,
+    or write to <%= @abuse_email %> with the artifact's link and why it should come down<% end %>.
+    Reports are read by a person, and content that breaks the rules above is removed as
+    soon as it is confirmed.<% if @abuse_email %> If you are the author and think something
+    was removed by mistake, write to the same address.<% end %>
   </p>
 
   <h2 id="privacy">privacy</h2>
   <p>What we keep, and for how long:</p>
   <ul>
     <li><strong>Artifacts</strong> — the file, its title and settings. Deleted when the artifact
-      expires: 1–30 days after it was published or last updated. Anyone with the link can read it,
+      expires — 1–30 days after it was published or last updated — in the nightly clean-up that follows. Anyone with the link can read it,
       so do not publish secrets.</li>
     <li><strong>Edit tokens and PINs</strong> — stored only as hashes.</li>
     <li><strong>Uploader IP address</strong> — stored encrypted and erased 30 days after upload,
@@ -56,14 +58,16 @@
       operating and securing the service.</li>
   </ul>
   <p>
-    There are no ads, no analytics and no tracking. The only cookie is a session cookie that
-    protects forms and the admin sign-in. Your browser keeps the name you comment under, and
+    There are no ads, no analytics and no tracking. Cookies are used only to protect forms and
+    to keep admins signed in. Your browser keeps the name you comment under, and
     an artifact's edit token if you enter one to delete comments, in its own local storage —
     never sent anywhere except with the request that needs it. Errors are reported to an
     error tracker without cookies, headers or request bodies. The service may sit behind a
     CDN such as Cloudflare, which sees requests in transit.
   </p>
-  <p>To ask what we hold about you, or to have it deleted, write to the contact address above.</p>
+  <% if @abuse_email %>
+    <p>To ask what we hold about you, or to have it deleted, write to <%= @abuse_email %>.</p>
+  <% end %>
 
   <h2 id="no-warranty">no warranty</h2>
   <p>

@@ -61,8 +61,8 @@ storage, and no two artifacts share any. The costs are real, though:
 - The postMessage channel targets `*` instead of a named origin, because an
   opaque origin cannot name itself.
 
-Fine for a staging box or a first deploy on a throwaway hostname. Set
-`CONTENT_HOST` before it matters.
+`CONTENT_HOST` is optional: single-origin mode is a complete, supported setup.
+Add a content domain when these costs stop being acceptable for your instance.
 
 Artifacts are served under a policy that blocks `fetch`, form submission, top-level
 navigation, popups, downloads and every external resource. `allow_network=true`
@@ -138,7 +138,7 @@ reversible IPs.
 
 | Variable | Default | Example | Purpose |
 |---|---|---|---|
-| `CONTENT_HOST` | unset → single-origin mode | `artifactousercontent.com` | Parent domain for artifact subdomains. Must be a different registrable domain from the app |
+| `CONTENT_HOST` | unset → single-origin mode | `artifactousercontent.com` | Optional. Parent domain for artifact subdomains. Must be a different registrable domain from the app |
 | `APP_ORIGIN` | unset → taken from the request | `https://artifacto.igorkasyanchuk.com` | Origin used in `frame-ancestors` and the artifact's postMessage target. **Required when `CONTENT_HOST` is set**, ignored otherwise |
 
 **Runtime**
@@ -161,7 +161,7 @@ reversible IPs.
 | `DEFAULT_TTL_DAYS` | `14` | `14` | Default lifetime, 1–30 allowed |
 | `ARTIFACT_CACHE_SECONDS` | `300` | `0` | How long a served artifact stays fresh in browsers and at the edge. A `PUT` keeps the URL, so this is also how long a reader can keep seeing the previous version after an update. `0` forces revalidation on every view, answered by the ETag with a 304 |
 | `ADMIN_EMAIL` | `admin@example.com` | `you@example.com` | The admin `bin/rails db:seed` creates, with `ADMIN_PASSWORD`. Seeding sets the password every run, so it also recovers a lost one |
-| `ABUSE_EMAIL` | unset | `abuse@example.com` | Contact shown on `/terms` for abuse reports, takedown and privacy requests. Unset, the page points at the Report form alone — set it before going public |
+| `ABUSE_EMAIL` | unset | `abuse@example.com` | Optional. Contact shown on `/terms` for abuse reports, takedown and privacy requests. Unset, the contact section and every mention of an address are left out, and the page points at the Report form alone |
 | `BEHIND_CLOUDFLARE` | unset | `true` | Trust Cloudflare's address ranges and read the visitor from `CF-Connecting-IP`. **Required behind Cloudflare**: without it every visitor looks like a Cloudflare edge, so per-IP rate limits are shared by strangers and IP hashes name Cloudflare. See `config/initializers/cloudflare.rb` |
 | `CF_ZONE_ID` / `CF_API_TOKEN` | — | `0a1b2c...` / `v1.0-...` | Purge the CDN on update. The job no-ops without them, and in single-origin mode |
 
@@ -368,7 +368,7 @@ holds the line instead:
 **Comments and single-origin mode are a bad pair.** In single-origin mode your app
 domain already serves attacker-supplied HTML; a commenting surface on the same
 domain adds attacker-supplied *text* under your brand, with a form that invites it.
-Set `CONTENT_HOST` before turning readers loose on a public instance.
+A content domain moves both off your brand, if that matters for your instance.
 
 ## Abuse
 
@@ -407,8 +407,9 @@ artifact can be answered. Say so in your privacy policy.
 
 **Before going public**: `/terms` carries the acceptable-use rules, the privacy
 notice and the takedown process, linked from the landing page and every
-artifact's Report menu. Set `ABUSE_EMAIL` so it names a real inbox, and edit the
-page if your instance promises a response time. A
+artifact's Report menu. Set `ABUSE_EMAIL` if you want it to name an inbox — the
+page leaves the contact out otherwise — and edit it if your instance promises a
+response time. A
 server in Germany puts you under the EU DSA, which requires a notice-and-action
 mechanism and a point of contact. Hetzner suspends machines on abuse complaints
 faster than you will read the mail, so response time is an operational requirement.

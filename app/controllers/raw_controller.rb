@@ -28,8 +28,18 @@ class RawController < ActionController::Base
     fresh_when(strong_etag: artifact.etag, last_modified: artifact.updated_at, public: !artifact.pin?)
     return if performed?
 
+    # Deleted between the two queries: answer 404, and make sure the headers set
+    # for a body do not let anyone cache it. A PUT in between is harmless — the
+    # new bytes go out under the old ETag, which the next revalidation replaces.
+    body = Artifact.where(id: artifact.id).pick(:content)
+    if body.nil?
+      response.headers.delete("Content-Encoding")
+      response.headers["Cache-Control"] = "no-store"
+      return head :not_found
+    end
+
     Artifact.update_counters(artifact.id, view_count: 1)
-    render body: Artifact.where(id: artifact.id).pick(:content)
+    render body: body
   end
 
   def robots

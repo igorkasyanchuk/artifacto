@@ -153,7 +153,9 @@ class Artifact < ApplicationRecord
   def blocked? = blocked_at.present?
   def pin? = pin_digest.present?
 
-  def etag = %("#{sha256[0, 16]}-#{AgentInjector::VERSION}")
+  # updated_at, not just the source hash: a Markdown body also depends on its
+  # title and format, and a PUT changing only those must not answer 304.
+  def etag = %("#{sha256[0, 16]}-#{updated_at.utc.strftime('%s%6N')}-#{AgentInjector::VERSION}")
 
   # `base` is the requesting origin, used only in single-origin mode. Nil there
   # yields a root-relative URL, which is what the wrapper's iframe wants anyway.

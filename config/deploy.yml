@@ -62,7 +62,9 @@ env:
     # TLS terminates at Cloudflare, so the visitor's address arrives in
     # CF-Connecting-IP. Without this every rate limit counts Cloudflare's edges.
     BEHIND_CLOUDFLARE: true
-    ABUSE_EMAIL: abuse@example.com
+    # Optional. Set, /terms lists it for abuse, takedown and privacy requests;
+    # unset, the page leaves the contact out and points at the Report form.
+    # ABUSE_EMAIL: abuse@example.com
     # CONTENT_HOST: artifactousercontent.com
     MAX_UPLOAD_BYTES: 5242880
     DEFAULT_TTL_DAYS: 14

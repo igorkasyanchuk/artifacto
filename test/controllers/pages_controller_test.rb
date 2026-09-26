@@ -38,11 +38,13 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     ENV.delete("ABUSE_EMAIL")
   end
 
-  test "the terms page still points at the Report form without one" do
+  test "the terms page leaves the contact out entirely without one" do
     get "/terms"
 
     assert_response :success
+    assert_select "#contact", false
     assert_select "a[href^='mailto:']", false
+    assert_no_match(/write to|address above/, response.body)
     assert_match "Report", response.body
   end
 

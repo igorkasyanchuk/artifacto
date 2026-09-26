@@ -27,8 +27,9 @@ module ArtifactApi
       render(json: { error: "expired" }, status: :gone) if @artifact.expired?
     end
 
-    # Whole rows by default: update and renew save the record, which reads content.
-    def artifact_scope = Artifact
+    # Only update and renew save the record, and saving validates content; every
+    # other action here reads metadata, so the body stays in the database.
+    def artifact_scope = %w[update renew].include?(action_name) ? Artifact : Artifact.without_content
 
     # A PIN gates the artifact, so it has to gate everything derived from it: a
     # stored quote is up to 200 characters lifted straight out of the locked page.
