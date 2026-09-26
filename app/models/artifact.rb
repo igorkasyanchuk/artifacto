@@ -40,6 +40,11 @@ class Artifact < ApplicationRecord
 
   scope :live, -> { where(blocked_at: nil).where(expires_at: Time.current..) }
 
+  # Every column but the body. The wrapper page, the comments API and a 304 never
+  # read it, and one row can carry megabytes of it. Such a record cannot be saved:
+  # validation reads content.
+  scope :without_content, -> { select(column_names - [ "content" ]) }
+
   def self.max_bytes = ENV.fetch("MAX_UPLOAD_BYTES", 5.megabytes).to_i
   def self.default_ttl_days = ENV.fetch("DEFAULT_TTL_DAYS", 14).to_i
 

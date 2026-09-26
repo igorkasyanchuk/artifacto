@@ -20,8 +20,14 @@ class PagesController < ApplicationController
     send_data body, type: "text/markdown; charset=utf-8", disposition: "attachment", filename: "SKILL.md"
   end
 
+  # Where abuse reports and legal notices go. Unset, the page points at the
+  # Report form alone.
+  def terms
+    @abuse_email = ENV["ABUSE_EMAIL"].presence
+  end
+
   # Shared artifacts are unlisted by design; only the landing page is indexable.
   def robots
-    render plain: "User-agent: *\nDisallow: /a/\nDisallow: /admin\nAllow: /\n", content_type: "text/plain"
+    render plain: "User-agent: *\nDisallow: /a/\nDisallow: /raw/\nDisallow: /admin\nAllow: /\n", content_type: "text/plain"
   end
 end

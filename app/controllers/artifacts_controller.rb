@@ -36,7 +36,7 @@ class ArtifactsController < ApplicationController
 
   private
     def load_artifact
-      @artifact = Artifact.find_by(slug: params[:slug])
+      @artifact = Artifact.without_content.find_by(slug: params[:slug])
       return render(:missing, status: :not_found) if @artifact.nil?
       return render(:blocked, status: :unavailable_for_legal_reasons) if @artifact.blocked?
       render(:expired, status: :gone) if @artifact.expired?

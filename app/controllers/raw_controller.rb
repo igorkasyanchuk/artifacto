@@ -16,7 +16,8 @@ class RawController < ActionController::Base
   end
 
   def show
-    artifact = Artifact.find_by(slug: params[:slug] || request.subdomains.first)
+    # The body is fetched only once we know the answer is not a 304.
+    artifact = Artifact.without_content.find_by(slug: params[:slug] || request.subdomains.first)
     return head :not_found if artifact.nil?
     return head :gone if artifact.expired?
     return head :unavailable_for_legal_reasons if artifact.blocked?
@@ -28,7 +29,7 @@ class RawController < ActionController::Base
     return if performed?
 
     Artifact.update_counters(artifact.id, view_count: 1)
-    render body: artifact.content
+    render body: Artifact.where(id: artifact.id).pick(:content)
   end
 
   def robots

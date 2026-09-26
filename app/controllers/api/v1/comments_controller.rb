@@ -36,6 +36,10 @@ module Api
         @artifact.comments.find(params[:id]).destroy!
         head :no_content
       end
+
+      private
+        # Comments never touch the body, and the overlay fetches them on every view.
+        def artifact_scope = Artifact.without_content
     end
   end
 end

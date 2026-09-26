@@ -21,11 +21,14 @@ module ArtifactApi
   private
     # Nested routes carry :artifact_slug, the artifact's own routes carry :slug.
     def load_artifact
-      @artifact = Artifact.find_by(slug: params[:artifact_slug] || params[:slug])
+      @artifact = artifact_scope.find_by(slug: params[:artifact_slug] || params[:slug])
       return render(json: { error: "not found" }, status: :not_found) if @artifact.nil?
       return render(json: { error: "blocked" }, status: :unavailable_for_legal_reasons) if @artifact.blocked?
       render(json: { error: "expired" }, status: :gone) if @artifact.expired?
     end
+
+    # Whole rows by default: update and renew save the record, which reads content.
+    def artifact_scope = Artifact
 
     # A PIN gates the artifact, so it has to gate everything derived from it: a
     # stored quote is up to 200 characters lifted straight out of the locked page.

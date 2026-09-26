@@ -23,6 +23,14 @@ class Admin::AccessTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "sign-in guesses run out" do
+    10.times { post user_session_path, params: { user: { email: "admin@example.com", password: "wrong" } } }
+    post user_session_path, params: { user: { email: "admin@example.com", password: "password" } }
+
+    assert_redirected_to new_user_session_path
+    assert_equal "Too many attempts, try again later.", flash[:alert]
+  end
+
   test "admins get the dashboard" do
     sign_in users(:admin)
     get admin_root_path

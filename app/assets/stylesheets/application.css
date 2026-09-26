@@ -123,6 +123,11 @@ td button { padding: .15rem .5rem; font-size: .72rem; }
         display: flex; gap: 1rem; flex-wrap: wrap; color: var(--muted); font-size: .75rem; }
 .foot .spacer { flex: 1; }
 
+/* terms page */
+.legal { max-width: 44rem; }
+.legal p, .legal li { font-size: .85rem; line-height: 1.7; }
+.legal ul { padding-left: 1.2rem; }
+
 /* landing */
 body.home { background:
   radial-gradient(60rem 30rem at 70% -10%, var(--glow), transparent 70%),

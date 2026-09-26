@@ -125,10 +125,12 @@ shortens a 30-day artifact back to 14, so carry the value on every update.
 browser that already has the page keeps its own copy for five minutes and never
 asks the server. A user reporting "I don't see the update" is almost always looking
 at that cache — tell them to hard-reload rather than publishing again. To check what
-the server actually holds, compare `last-modified` against the time of your `PUT`:
+the server actually holds, compare `last-modified` on the artifact's `raw_url`
+against the time of your `PUT` (`TOKEN` and `BASE` as above):
 
 ```bash
-curl -sSI "${ARTIFACTO_URL:-https://artifacto.igorkasyanchuk.com}/raw/$SLUG" | grep -i 'last-modified\|etag'
+RAW_URL=$(curl -sS -H "Authorization: Bearer $TOKEN" "$BASE" | jq -r .raw_url)
+curl -sSI "$RAW_URL" | grep -i 'last-modified\|etag'
 ```
 
 ## Building the page

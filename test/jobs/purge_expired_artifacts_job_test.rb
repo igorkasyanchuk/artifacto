@@ -12,6 +12,19 @@ class PurgeExpiredArtifactsJobTest < ActiveJob::TestCase
     assert_not Artifact.exists?(dead.id)
   end
 
+  test "takes an expired artifact's comments and reports with it" do
+    dead = Artifact.create_from_source!("<html><body>dead</body></html>")
+    dead.comments.create!(selector: "body", body: "fix this")
+    dead.abuse_reports.create!(reason: "spam")
+    dead.update_column(:expires_at, 1.minute.ago)
+
+    PurgeExpiredArtifactsJob.new.perform
+
+    assert_not Artifact.exists?(dead.id)
+    assert_equal 0, Comment.where(artifact_id: dead.id).count
+    assert_equal 0, AbuseReport.where(artifact_id: dead.id).count
+  end
+
   test "scrubs uploader IPs past the retention window, even on extended artifacts" do
     old = Artifact.create_from_source!("<html><body>old</body></html>", creator_ip: "203.0.113.1")
     old.update_columns(created_at: (Artifact::IP_RETENTION + 1.day).ago, expires_at: 5.days.from_now)

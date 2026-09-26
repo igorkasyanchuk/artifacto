@@ -71,6 +71,7 @@ kbd { display: inline-block; min-width: 1.15rem; margin-left: .45rem; padding: 0
              padding: .7rem; background: var(--panel); border: 1px solid var(--line-2);
              border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .35); }
 .menu-body .stack { margin: .6rem 0 0; }
+.menu-body textarea { width: 100%; margin-top: .5rem; box-sizing: border-box; resize: vertical; }
 
 /* comment overlay */
 .stage { position: relative; flex: 1; min-height: 0; }

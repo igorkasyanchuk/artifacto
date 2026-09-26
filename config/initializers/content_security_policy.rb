@@ -29,6 +29,8 @@ Rails.application.configure do
 
   # importmap-rails emits inline <script> tags; without a nonce the policy above
   # would block Stimulus and take the wrapper page's comment channel with it.
+  # style-src too: Turbo injects its progress bar's <style> with the page nonce,
+  # and without one every Turbo page logged a CSP violation.
   config.content_security_policy_nonce_generator = ->(_request) { SecureRandom.base64(16) }
-  config.content_security_policy_nonce_directives = %w[script-src]
+  config.content_security_policy_nonce_directives = %w[script-src style-src]
 end

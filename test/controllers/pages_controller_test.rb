@@ -27,4 +27,29 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-clipboard-target=source]",
       text: /curl -sf http:\/\/some-random-name\.example\.net\/skill/
   end
+
+  test "the terms page names the abuse contact when one is configured" do
+    ENV["ABUSE_EMAIL"] = "abuse@example.org"
+    get "/terms"
+
+    assert_response :success
+    assert_select "a[href='mailto:abuse@example.org']"
+  ensure
+    ENV.delete("ABUSE_EMAIL")
+  end
+
+  test "the terms page still points at the Report form without one" do
+    get "/terms"
+
+    assert_response :success
+    assert_select "a[href^='mailto:']", false
+    assert_match "Report", response.body
+  end
+
+  test "robots keep crawlers off artifacts in both zone layouts" do
+    get "/robots.txt"
+
+    assert_includes response.body, "Disallow: /a/"
+    assert_includes response.body, "Disallow: /raw/"
+  end
 end

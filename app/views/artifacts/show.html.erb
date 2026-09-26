@@ -55,7 +55,9 @@
           <%= form_with url: report_artifact_path(@artifact.slug), method: :post do |form| %>
             <label for="reason">Report this artifact</label>
             <%= form.select :reason, AbuseReport::REASONS.map { |r| [ r.capitalize, r ] } %>
-            <p class="stack"><%= form.submit "Report" %></p>
+            <%= form.text_area :details, rows: 3, maxlength: 2_000, placeholder: "What is wrong with it? (optional)",
+                               aria: { label: "Details" } %>
+            <p class="stack"><%= form.submit "Report" %> <%= link_to "rules", terms_path, class: "note" %></p>
           <% end %>
         </div>
       </details>

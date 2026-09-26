@@ -58,7 +58,11 @@ env:
     # required here, but pinning it keeps the artifact's postMessage target exact
     # instead of "*". Set CONTENT_HOST to a second registrable domain — never a
     # subdomain of the app — to move this box to the two-zone layout.
-    APP_ORIGIN: https://artifacto.igorkasyanchuk.com
+    APP_ORIGIN: https://artifacto.example.com
+    # TLS terminates at Cloudflare, so the visitor's address arrives in
+    # CF-Connecting-IP. Without this every rate limit counts Cloudflare's edges.
+    BEHIND_CLOUDFLARE: true
+    ABUSE_EMAIL: abuse@example.com
     # CONTENT_HOST: artifactousercontent.com
     MAX_UPLOAD_BYTES: 5242880
     DEFAULT_TTL_DAYS: 14

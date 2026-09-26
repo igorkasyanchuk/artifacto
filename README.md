@@ -127,9 +127,12 @@ the app reads nothing from disk that is not in git.
 | `AR_ENCRYPTION_SALT` | `c710b4...` (32+ chars, a *third* `bin/rails secret`) | Key derivation salt |
 | `DATABASE_URL` | `postgres://artifacto:s3cret@artifacto-db:5432/artifacto_production` | Merged over `config/database.yml`. Use the `DB_*` vars below instead if you prefer |
 | `REDIS_URL` | `redis://artifacto-redis:6379/0` | Sidekiq queue and cron, and `Rails.cache` — which is where the API's rate-limit counters live, so this is not optional |
+| `IP_HASH_SECRET` | `e91c44...` (a *fourth* `bin/rails secret`) | HMAC key for `creator_ip_hash`. A known key turns every hash back into an IP, so there is no production default. Rotating it orphans existing bans |
+| `ADMIN_PASSWORD` | `a-long-random-string` | Password for the admin `bin/rails db:seed` creates on the first boot. Read only by the seed, which fails without it in production |
 
-Boot fails loudly if any of the `AR_ENCRYPTION_*` keys are missing, so a
-misconfigured deploy never quietly writes unencrypted IPs.
+Boot fails loudly if `IP_HASH_SECRET` or any of the `AR_ENCRYPTION_*` keys are
+missing, so a misconfigured deploy never quietly writes unencrypted or
+reversible IPs.
 
 **Zones**
 
@@ -157,8 +160,9 @@ misconfigured deploy never quietly writes unencrypted IPs.
 | `MAX_UPLOAD_BYTES` | `5242880` | `10485760` | Hard upload limit |
 | `DEFAULT_TTL_DAYS` | `14` | `14` | Default lifetime, 1–30 allowed |
 | `ARTIFACT_CACHE_SECONDS` | `300` | `0` | How long a served artifact stays fresh in browsers and at the edge. A `PUT` keeps the URL, so this is also how long a reader can keep seeing the previous version after an update. `0` forces revalidation on every view, answered by the ETag with a 304 |
-| `IP_HASH_SECRET` | `dev-secret` | `e91c44...` (from `bin/rails secret`) | HMAC key for `creator_ip_hash`. Rotating it orphans existing bans |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@example.com` / `password` in dev | `igor@example.com` / `a-long-random-string` | The admin `bin/rails db:seed` creates. Seeding sets the password every run, so it also recovers a lost one. In production an unset `ADMIN_PASSWORD` generates a random one and prints it |
+| `ADMIN_EMAIL` | `admin@example.com` | `you@example.com` | The admin `bin/rails db:seed` creates, with `ADMIN_PASSWORD`. Seeding sets the password every run, so it also recovers a lost one |
+| `ABUSE_EMAIL` | unset | `abuse@example.com` | Contact shown on `/terms` for abuse reports, takedown and privacy requests. Unset, the page points at the Report form alone — set it before going public |
+| `BEHIND_CLOUDFLARE` | unset | `true` | Trust Cloudflare's address ranges and read the visitor from `CF-Connecting-IP`. **Required behind Cloudflare**: without it every visitor looks like a Cloudflare edge, so per-IP rate limits are shared by strangers and IP hashes name Cloudflare. See `config/initializers/cloudflare.rb` |
 | `CF_ZONE_ID` / `CF_API_TOKEN` | — | `0a1b2c...` / `v1.0-...` | Purge the CDN on update. The job no-ops without them, and in single-origin mode |
 
 **Database, if you are not using `DATABASE_URL`**
@@ -174,12 +178,14 @@ misconfigured deploy never quietly writes unencrypted IPs.
 
 Any Docker host works — the image reads everything from env vars, so there is no
 `master.key` to ship. The smallest deploy that runs is single-origin mode:
-`SECRET_KEY_BASE`, the three `AR_ENCRYPTION_*` keys, `DATABASE_URL`, `REDIS_URL`
-and `SIDEKIQ_IN_PUMA=true`. No hostname is configured anywhere, so the app
+`SECRET_KEY_BASE`, the three `AR_ENCRYPTION_*` keys, `IP_HASH_SECRET`,
+`ADMIN_PASSWORD`, `DATABASE_URL`, `REDIS_URL` and `SIDEKIQ_IN_PUMA=true` — plus
+`BEHIND_CLOUDFLARE=true` if Cloudflare is in front. No hostname is configured anywhere, so the app
 answers on whatever domain the platform gives it. Read **Single-origin mode**
 above before leaving it that way.
 
-Generate the five secrets, one run each:
+Generate the six secrets (`SECRET_KEY_BASE`, the three `AR_ENCRYPTION_*`,
+`IP_HASH_SECRET`, `ADMIN_PASSWORD`), one run each:
 
 ```bash
 bin/rails secret
@@ -213,6 +219,8 @@ Both zones, free plan. The live instance runs single-origin, so only the app zon
 exists there; the content-zone rules apply once `CONTENT_HOST` is set.
 
 **App zone**
+- Set `BEHIND_CLOUDFLARE=true` on the app, or every rate limit counts Cloudflare's
+  edge addresses instead of visitors.
 - WAF managed rules on; rate limiting rule on `POST /api/v1/*`.
 - **Turn Bot Fight Mode off.** It blocks `curl`, which breaks the skill — this is
   the most common cause of mysterious 403s here.
@@ -397,8 +405,10 @@ stored separately, encrypted with Active Record Encryption, and scrubbed 30 days
 after upload (`Artifact::IP_RETENTION`) so a lawful request about a specific
 artifact can be answered. Say so in your privacy policy.
 
-**Before going public**, none of which is code: publish terms and an acceptable-use
-policy, an `abuse@` address and a takedown page with a stated response time. A
+**Before going public**: `/terms` carries the acceptable-use rules, the privacy
+notice and the takedown process, linked from the landing page and every
+artifact's Report menu. Set `ABUSE_EMAIL` so it names a real inbox, and edit the
+page if your instance promises a response time. A
 server in Germany puts you under the EU DSA, which requires a notice-and-action
 mechanism and a point of contact. Hetzner suspends machines on abuse complaints
 faster than you will read the mail, so response time is an operational requirement.

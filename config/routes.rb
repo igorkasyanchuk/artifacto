@@ -17,11 +17,12 @@ Rails.application.routes.draw do
 
   # Everything else is the app zone. Deliberately unconstrained by host so the
   # app works on whatever domain it is deployed under.
-  devise_for :users
+  devise_for :users, controllers: { sessions: "users/sessions" }
 
   root to: "pages#home"
   get "/robots.txt", to: "pages#robots", as: :app_robots
   get "/skill", to: "pages#skill", as: :skill
+  get "/terms", to: "pages#terms", as: :terms
   get "/manifest", to: "rails/pwa#manifest", as: :pwa_manifest, defaults: { format: :json }
 
   get  "/a/:slug",        to: "artifacts#show",         as: :artifact

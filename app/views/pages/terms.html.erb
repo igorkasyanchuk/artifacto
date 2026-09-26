@@ -1,0 +1,74 @@
+<% content_for :title, "Terms, privacy and abuse · Artifacto" %>
+
+<main class="wrap legal">
+  <p class="eyebrow"><%= link_to "← artifacto", root_path %></p>
+  <h1>Terms, privacy and abuse</h1>
+  <p class="lede">
+    Anyone can publish here without an account, so these rules are short and enforced
+    by removal. Using the service means agreeing to them.
+  </p>
+
+  <h2 id="contact">contact</h2>
+  <% if @abuse_email %>
+    <p>Abuse reports, takedown requests, legal notices and privacy requests:
+      <a href="mailto:<%= @abuse_email %>"><%= @abuse_email %></a>.</p>
+  <% end %>
+  <p>Every artifact page also has a <strong>Report</strong> form in its <code>⋯</code> menu.</p>
+
+  <h2 id="acceptable-use">acceptable use</h2>
+  <p>Do not publish anything that is illegal where you or the server are, or that:</p>
+  <ul>
+    <li>sexualises minors, in any form;</li>
+    <li>phishes, harvests credentials or payment details, or impersonates a person or organisation;</li>
+    <li>delivers or links to malware, or attacks the people who open it;</li>
+    <li>harasses, threatens or doxxes anyone, or incites hatred or violence;</li>
+    <li>infringes someone else's copyright or trademark;</li>
+    <li>is spam, or uses this service as general-purpose file or image hosting.</li>
+  </ul>
+  <p>
+    We remove anything that breaks these rules, block its bytes and every image embedded
+    in it from being published again, and may refuse further uploads from the same
+    source. We do not have to warn you first.
+  </p>
+
+  <h2 id="takedown">reporting and takedown</h2>
+  <p>
+    Use the Report form on the artifact, or write to the address above with the artifact's
+    link and why it should come down. Reports are read by a person, and content that
+    breaks the rules above is removed as soon as it is confirmed. If you are the author
+    and think something was removed by mistake, write to the same address.
+  </p>
+
+  <h2 id="privacy">privacy</h2>
+  <p>What we keep, and for how long:</p>
+  <ul>
+    <li><strong>Artifacts</strong> — the file, its title and settings. Deleted when the artifact
+      expires: 1–30 days after it was published or last updated. Anyone with the link can read it,
+      so do not publish secrets.</li>
+    <li><strong>Edit tokens and PINs</strong> — stored only as hashes.</li>
+    <li><strong>Uploader IP address</strong> — stored encrypted and erased 30 days after upload,
+      so a lawful request about a specific artifact can be answered. A keyed hash of it is kept
+      with the artifact to enforce bans.</li>
+    <li><strong>Comments</strong> — the text, the optional name you typed, where on the page it
+      was left, and a keyed hash of your IP address for moderation. Deleted with the artifact.</li>
+    <li><strong>Reports</strong> — the reason, any details you gave, and a keyed hash of your IP address.</li>
+    <li><strong>Server logs</strong> — record request IP addresses and are kept briefly for
+      operating and securing the service.</li>
+  </ul>
+  <p>
+    There are no ads, no analytics and no tracking. The only cookie is a session cookie that
+    protects forms and the admin sign-in. Your browser keeps the name you comment under, and
+    an artifact's edit token if you enter one to delete comments, in its own local storage —
+    never sent anywhere except with the request that needs it. Errors are reported to an
+    error tracker without cookies, headers or request bodies. The service may sit behind a
+    CDN such as Cloudflare, which sees requests in transit.
+  </p>
+  <p>To ask what we hold about you, or to have it deleted, write to the contact address above.</p>
+
+  <h2 id="no-warranty">no warranty</h2>
+  <p>
+    The service is provided as is, free, with no guarantee of availability, and artifacts
+    disappear when they expire — keep your own copy of anything that matters. The software
+    is open source under the MIT licence.
+  </p>
+</main>

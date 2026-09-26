@@ -31,6 +31,12 @@ threads threads_count, threads_count
 # Specifies the `port` that Puma will listen on to receive requests; default is 3000.
 port ENV.fetch("PORT", 3000)
 
+# Refuse an oversized body before it is read. The API checks MAX_UPLOAD_BYTES
+# itself, but only after Puma has buffered the whole request — and a chunked one
+# carries no Content-Length to check up front. The extra megabyte is multipart
+# and JSON framing, so a file right at the limit still gets the API's own 413.
+http_content_length_limit ENV.fetch("MAX_UPLOAD_BYTES", 5 * 1024 * 1024).to_i + 1024 * 1024
+
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
 

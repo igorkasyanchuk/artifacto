@@ -25,6 +25,7 @@ default: &default
 development:
   <<: *default
   database: artifacto_development
+  gssencmode: disable
   host: <%= ENV.fetch("DB_HOST", "localhost") %>
   port: <%= ENV.fetch("DB_PORT", 5432) %>
   username: <%= ENV.fetch("DB_USER", "postgres") %>
@@ -63,6 +64,9 @@ development:
 test:
   <<: *default
   database: artifacto_test
+  # macOS libpq probes for GSSAPI on connect, and that probe hangs in a forked
+  # process — which is every parallel test worker. Nobody here speaks Kerberos.
+  gssencmode: disable
   host: <%= ENV.fetch("DB_HOST", "localhost") %>
   port: <%= ENV.fetch("DB_PORT", 5432) %>
   username: <%= ENV.fetch("DB_USER", "postgres") %>
