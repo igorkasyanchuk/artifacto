@@ -163,6 +163,7 @@ reversible IPs.
 | `ADMIN_EMAIL` | `admin@example.com` | `you@example.com` | The admin `bin/rails db:seed` creates, with `ADMIN_PASSWORD`. Seeding sets the password every run, so it also recovers a lost one |
 | `ABUSE_EMAIL` | unset | `abuse@example.com` | Optional. Contact shown on `/terms` for abuse reports, takedown and privacy requests. Unset, the contact section and every mention of an address are left out, and the page points at the Report form alone |
 | `BEHIND_CLOUDFLARE` | unset | `true` | Trust Cloudflare's address ranges and read the visitor from `CF-Connecting-IP`. **Required behind Cloudflare**: without it every visitor looks like a Cloudflare edge, so per-IP rate limits are shared by strangers and IP hashes name Cloudflare. See `config/initializers/cloudflare.rb` |
+| `UMAMI_SCRIPT_URL` / `UMAMI_WEBSITE_ID` | unset | `https://umami.example.com/script.js` / `1e2aadcd-...` | Optional page-view analytics on the landing and terms pages, and nowhere else. Both or nothing; the script's origin is added to those pages' `script-src` and `connect-src` only. The URL must be absolute http(s): boot fails on anything else |
 | `CF_ZONE_ID` / `CF_API_TOKEN` | — | `0a1b2c...` / `v1.0-...` | Purge the CDN on update. The job no-ops without them, and in single-origin mode |
 
 **Database, if you are not using `DATABASE_URL`**

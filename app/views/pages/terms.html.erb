@@ -58,7 +58,16 @@
       operating and securing the service.</li>
   </ul>
   <p>
-    There are no ads, no analytics and no tracking. Cookies are used only to protect forms and
+    There are no ads and no tracking.
+    <% if analytics? %>
+      Visits to this page and the landing page are counted by a self-hosted, cookieless
+      Umami instance — page, referrer, browser, operating system, device, screen size, language
+      and country, never who you are — unless your
+      browser sends Do Not Track. Artifacts and the admin area are never counted.
+    <% else %>
+      There are no analytics.
+    <% end %>
+    Cookies are used only to protect forms and
     to keep admins signed in. Your browser keeps the name you comment under, and
     an artifact's edit token if you enter one to delete comments, in its own local storage —
     never sent anywhere except with the request that needs it. Errors are reported to an

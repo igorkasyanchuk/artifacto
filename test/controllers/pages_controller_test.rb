@@ -48,6 +48,49 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_match "Report", response.body
   end
 
+  test "analytics loads on the public pages only, and only when configured" do
+    x = Rails.configuration.x
+    get "/"
+    assert_select "script[data-website-id]", false
+    assert_no_match "umami", response.headers["Content-Security-Policy"]
+
+    x.umami_script_url = "https://umami.example.org/script.js"
+    x.umami_website_id = "site-1"
+    x.umami_origin = "https://umami.example.org"
+
+    get "/"
+    assert_select "script[src='https://umami.example.org/script.js'][data-website-id='site-1'][data-turbo-track=reload][nonce]"
+    assert_match %r{script-src 'self' https://umami\.example\.org}, response.headers["Content-Security-Policy"]
+    assert_match %r{connect-src 'self' https://umami\.example\.org}, response.headers["Content-Security-Policy"]
+
+    get "/terms"
+    assert_select "script[data-website-id='site-1']"
+    assert_match "Umami", response.body
+
+    # The sign-in page shares the layout; it must not load the script or widen its policy.
+    get new_user_session_path
+    assert_select "script[data-website-id]", false
+    assert_no_match "umami", response.headers["Content-Security-Policy"]
+  ensure
+    x.umami_script_url = x.umami_website_id = x.umami_origin = nil
+  end
+
+  test "the analytics URL is checked once, at boot" do
+    initializer = Rails.root.join("config/initializers/artifacto.rb")
+    ENV["UMAMI_WEBSITE_ID"] = "site-1"
+
+    ENV["UMAMI_SCRIPT_URL"] = " https://umami.example.org:8443/script.js "
+    load initializer
+    assert_equal "https://umami.example.org:8443", Rails.configuration.x.umami_origin
+
+    ENV["UMAMI_SCRIPT_URL"] = "umami.example.org/script.js"
+    assert_raises(RuntimeError) { load initializer }
+  ensure
+    ENV.delete("UMAMI_SCRIPT_URL")
+    ENV.delete("UMAMI_WEBSITE_ID")
+    load initializer
+  end
+
   test "robots keep crawlers off artifacts in both zone layouts" do
     get "/robots.txt"
 

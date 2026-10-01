@@ -19,6 +19,19 @@ Rails.application.configure do
   # to be exact — and both of which are only needed across a zone boundary.
   config.x.app_origin = ENV["APP_ORIGIN"].presence
 
+  # Optional page-view analytics (Umami) on the landing and terms pages, see
+  # PagesController. Both or nothing: a self-hosted copy leaves them unset and
+  # never loads the script.
+  config.x.umami_script_url = ENV["UMAMI_SCRIPT_URL"].to_s.strip.presence
+  config.x.umami_website_id = ENV["UMAMI_WEBSITE_ID"].to_s.strip.presence
+  # Parsed once, here, so a malformed URL fails the boot instead of every page view.
+  config.x.umami_origin =
+    if config.x.umami_script_url && config.x.umami_website_id
+      uri = URI.parse(config.x.umami_script_url)
+      raise "UMAMI_SCRIPT_URL must be an absolute http(s) URL" unless uri.is_a?(URI::HTTP) && uri.host
+      URI.join(uri, "/").to_s.chomp("/")
+    end
+
   strict = Rails.env.production? && ENV["SECRET_KEY_BASE_DUMMY"].blank?
 
   if strict && config.x.content_host && config.x.app_origin.nil?

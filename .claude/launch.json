@@ -1,6 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "artifacto", "runtimeExecutable": "bin/rails", "runtimeArgs": ["server", "-p", "3100"], "port": 3100 }
+    { "name": "artifacto", "runtimeExecutable": "bin/rails", "runtimeArgs": ["server"], "port": 3100, "autoPort": true }
   ]
 }

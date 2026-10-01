@@ -1,4 +1,16 @@
 class PagesController < ApplicationController
+  # Analytics runs on these pages alone, so only they open the policy to it —
+  # on top of the app-wide sources, not instead of them.
+  content_security_policy do |policy|
+    if analytics?
+      origin = Rails.configuration.x.umami_origin
+      policy.script_src(*policy.directives["script-src"], origin)
+      policy.connect_src(*policy.directives["connect-src"], origin)
+    end
+  end
+
+  helper_method :analytics?
+
   def home
     @max_mb = (Artifact.max_bytes / 1.megabyte.to_f).round
     @ttl_days = Artifact.default_ttl_days
@@ -30,4 +42,9 @@ class PagesController < ApplicationController
   def robots
     render plain: "User-agent: *\nDisallow: /a/\nDisallow: /raw/\nDisallow: /admin\nAllow: /\n", content_type: "text/plain"
   end
+
+  private
+    def analytics?
+      Rails.configuration.x.umami_origin.present?
+    end
 end

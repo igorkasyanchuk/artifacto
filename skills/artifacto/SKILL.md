@@ -139,7 +139,7 @@ Everything below follows from one header. This is the policy an artifact is serv
 under — read it as the build spec, not as trivia:
 
 ```
-default-src 'none';   script-src 'unsafe-inline';   style-src 'unsafe-inline'
+default-src 'none';   script-src 'unsafe-inline' 'unsafe-eval';   style-src 'unsafe-inline'
 img-src data: blob:;  font-src data:;  media-src data: blob:
 connect-src 'none';   form-action 'none';   base-uri 'none'
 frame-ancestors 'self' APP_ORIGIN
@@ -157,7 +157,7 @@ media must arrive as `data:` URIs.
 | `<link href="https://fonts.googleapis.com/…">` | blocked; the page falls back to a system font and looks subtly wrong |
 | `<script src="https://cdn…/chart.js">` | blocked; every chart is an empty box |
 | `<img src="https://…">` | blocked; use a `data:` URI |
-| `fetch()`, `XMLHttpRequest`, `WebSocket` | blocked by `connect-src 'none'` unless the artifact was uploaded with `allow_network=true` |
+| `fetch()`, `XMLHttpRequest`, `WebSocket` | blocked by `connect-src 'none'` unless the artifact was uploaded with `allow_network=true`, which opens `https:` (and `wss:`) only — plain `http:` stays blocked |
 | `<form>` submit, `mailto:` | blocked by `form-action 'none'` |
 | `<a href="https://…">`, `target="_blank"`, `window.open` | no top-level navigation and no popups: an artifact cannot take the viewer anywhere |
 | a download link, `<a download>` | no `allow-downloads` in the sandbox |

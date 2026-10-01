@@ -21,6 +21,12 @@
         artifact.css, which belongs to the wrapper page alone. %>
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+    <%# Tracked, so a Turbo visit to a page without it (sign-in, admin) is a full
+        load: Turbo never unloads a head script, and Umami would count that page. %>
+    <% if controller.is_a?(PagesController) && analytics? %>
+      <%= javascript_include_tag Rails.configuration.x.umami_script_url, defer: true, nonce: true,
+            data: { website_id: Rails.configuration.x.umami_website_id, do_not_track: true, turbo_track: "reload" } %>
+    <% end %>
   </head>
 
   <body class="<%= class_names("auth" => devise_controller?) %> <%= yield :body_class %>">

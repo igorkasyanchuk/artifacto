@@ -3,23 +3,34 @@
 <header class="top">
   <div class="top-inner">
     <a class="brand" href="<%= root_path %>">
-      <%= image_tag "/icon.svg", alt: "" %>
-      <span>artifacto<span class="cursor" aria-hidden="true">_</span></span>
+      <%# public/icon.svg, inlined so the cursor can blink like the one in a terminal. %>
+      <svg class="logo" viewBox="0 0 512 512" aria-hidden="true">
+        <defs>
+          <linearGradient id="logo-ink" gradientUnits="userSpaceOnUse" x1="104" y1="130" x2="428" y2="390">
+            <stop offset="0" stop-color="#b6f5a8"/><stop offset=".55" stop-color="#7ee081"/><stop offset="1" stop-color="#2fd39a"/>
+          </linearGradient>
+        </defs>
+        <rect width="512" height="512" rx="112" fill="#0c0f0d"/>
+        <path d="M104 360 L204 150 L304 360" fill="none" stroke="url(#logo-ink)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect class="cursor" x="346" y="334" width="84" height="56" rx="10" fill="url(#logo-ink)"/>
+      </svg>
+      <span><span class="dim" aria-hidden="true">~/</span>artifacto</span>
     </a>
     <nav aria-label="Sections">
-      <a href="#upload">upload</a>
-      <a href="#agents">agents</a>
-      <a href="#api">api</a>
-      <a href="#sandbox">sandbox</a>
+      <a href="#upload"><i aria-hidden="true">01</i>upload</a>
+      <a href="#agents"><i aria-hidden="true">02</i>agents</a>
+      <a href="#api"><i aria-hidden="true">03</i>api</a>
+      <a href="#sandbox"><i aria-hidden="true">04</i>sandbox</a>
+      <a href="#self-host"><i aria-hidden="true">05</i>self-host</a>
     </nav>
-    <a class="btn gh" href="https://github.com/igorkasyanchuk/artifacto">github ↗</a>
+    <a class="btn gh" href="https://github.com/igorkasyanchuk/artifacto">★ star on github</a>
   </div>
 </header>
 
 <main>
   <section class="hero wrap">
     <div class="hero-copy">
-      <p class="kicker"><span class="tag">oss</span> throwaway hosting for the pages your agents make</p>
+      <p class="kicker"><span class="tag">oss · mit</span> throwaway hosting for the pages your agents make</p>
       <h1>Drop a file.<br><em>Get a link.</em></h1>
       <p class="lede">
         Self-contained HTML or Markdown in, a shareable URL out. Readers pin comments
@@ -29,6 +40,10 @@
         <a class="btn primary" href="#upload">upload a file</a>
         <a class="btn" href="#agents">install the skill →</a>
       </p>
+      <div class="oneliner" data-controller="clipboard">
+        <pre class="shell"><code data-clipboard-target="source">curl -sf <%= skill_url %> -o .claude/skills/artifacto/SKILL.md --create-dirs</code></pre>
+        <button data-clipboard-target="button" data-action="clipboard#copy">copy</button>
+      </div>
       <dl class="stats">
         <div><dt>max size</dt><dd><%= @max_mb %> MB</dd></div>
         <div><dt>lives for</dt><dd><%= @ttl_days %> days</dd></div>
@@ -41,6 +56,8 @@
       <div class="term-bar">
         <span class="dots"><i></i><i></i><i></i></span>
         <span>agent — zsh</span>
+        <span class="spacer"></span>
+        <span>⌘1</span>
       </div>
       <div class="term-body">
         <p><span class="p">❯</span> publish report.html as an artifact</p>
@@ -122,12 +139,12 @@
 
   <section class="wrap">
     <ul class="features">
-      <li><b>sandboxed</b><span>Every page runs in an opaque-origin frame with no network, no forms, no popups.</span></li>
-      <li><b>pinned comments</b><span>Readers click any spot and leave a note. Pins follow the text across edits.</span></li>
-      <li><b>agent round-trip</b><span>The publishing agent reads feedback over the API and ships the next version.</span></li>
-      <li><b>same url, new version</b><span>An edit token keeps updates on one link. No redeploys, no dashboards.</span></li>
-      <li><b>pin-lock</b><span>Optional PIN for anything that should not be read by whoever finds the link.</span></li>
-      <li><b>self-destructs</b><span>Gone after <%= @ttl_days %> days by default. Links expire — that is the point.</span></li>
+      <li><i aria-hidden="true">[#]</i><b>sandboxed</b><span>Every page runs in an opaque-origin frame with no network, no forms, no popups.</span></li>
+      <li><i aria-hidden="true">@</i><b>pinned comments</b><span>Readers click any spot and leave a note. Pins follow the text across edits.</span></li>
+      <li><i aria-hidden="true">&lt;-&gt;</i><b>agent round-trip</b><span>The publishing agent reads feedback over the API and ships the next version.</span></li>
+      <li><i aria-hidden="true">v2</i><b>same url, new version</b><span>An edit token keeps updates on one link. No redeploys, no dashboards.</span></li>
+      <li><i aria-hidden="true">***</i><b>pin-lock</b><span>Optional PIN for anything that should not be read by whoever finds the link.</span></li>
+      <li><i aria-hidden="true">ttl</i><b>self-destructs</b><span>Gone after <%= @ttl_days %> days by default. Links expire — that is the point.</span></li>
     </ul>
   </section>
 
@@ -198,10 +215,18 @@
       <li>Only inline, self-contained assets load. External scripts, styles and images are blocked.</li>
     </ul>
   </section>
+
+  <section class="wrap" id="self-host">
+    <p class="eyebrow">05 · self-host</p>
+    <h2>run your own</h2>
+    <p class="note">One Rails app on Postgres and Redis, MIT licensed. Deploy notes for Kamal and Coolify are in the README.</p>
+    <pre class="shell"><code>git clone https://github.com/igorkasyanchuk/artifacto &amp;&amp; cd artifacto &amp;&amp; \
+  bin/setup &amp;&amp; bin/rails server</code></pre>
+  </section>
 </main>
 
 <footer class="foot">
-  <span>artifacto</span>
+  <span><span class="ok">❯</span> artifacto</span>
   <span>MIT</span>
   <a href="https://github.com/igorkasyanchuk/artifacto">github</a>
   <%= link_to "SKILL.md", skill_path %>

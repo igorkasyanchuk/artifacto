@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  # The same steps as bin/ci, minus bin/setup: the database comes from the service below.
+  ci:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: [ "5432:5432" ]
+        options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    env:
+      RAILS_ENV: test
+      DB_HOST: localhost
+      DB_PASSWORD: postgres
+      CI: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Style
+        run: bin/rubocop -f github
+
+      - name: Security
+        run: |
+          bin/bundler-audit
+          bin/importmap audit
+          bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error
+
+      - name: Tests
+        run: |
+          bin/rails db:prepare
+          bin/rails test
+          bin/rails db:seed:replant

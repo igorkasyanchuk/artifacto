@@ -1,6 +1,18 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="112" fill="#0c0e0d"/>
-  <rect x="16" y="16" width="480" height="480" rx="98" fill="none" stroke="#7ee081" stroke-opacity=".25" stroke-width="8"/>
-  <path d="M256 120 L360 232 H296 V320 H216 V232 H152 Z" fill="#7ee081"/>
-  <rect x="136" y="360" width="240" height="48" rx="6" fill="#7ee081"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141a17"/>
+      <stop offset="1" stop-color="#060807"/>
+    </linearGradient>
+    <linearGradient id="ink" gradientUnits="userSpaceOnUse" x1="104" y1="130" x2="428" y2="390">
+      <stop offset="0" stop-color="#b6f5a8"/>
+      <stop offset=".55" stop-color="#7ee081"/>
+      <stop offset="1" stop-color="#2fd39a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="12" y="12" width="488" height="488" rx="100" fill="none" stroke="#7ee081" stroke-opacity=".22" stroke-width="6"/>
+  <!-- An "A" with no crossbar is a caret pointing up: publish. The cursor finishes the prompt. -->
+  <path d="M104 360 L204 150 L304 360" fill="none" stroke="url(#ink)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="346" y="334" width="84" height="56" rx="10" fill="url(#ink)"/>
 </svg>
