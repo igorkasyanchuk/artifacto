@@ -34,7 +34,7 @@ const remember = (key, value) => {
 export default class extends Controller {
   static targets = [
     "frame", "overlay", "panel", "quote", "list", "body", "author", "count", "toggle", "error",
-    "drawer", "entries", "toast", "pins", "status", "listToggle"
+    "drawer", "entries", "toast", "pins", "status", "listToggle", "closeBar", "restore"
   ]
   static values = { slug: String, token: String }
 
@@ -76,7 +76,7 @@ export default class extends Controller {
   // thread's own fields, and the report form's select, keep their keys.
   key(event) {
     if (event.key === "Escape") return this.escape()
-    if (event.metaKey || event.ctrlKey || event.altKey || !this.hasFrameTarget) return
+    if (event.metaKey || event.ctrlKey || event.altKey || !this.hasFrameTarget || this.fullscreen) return
     if (event.target.closest?.("input, textarea, select, [contenteditable]")) return
 
     const action = { c: "toggle", l: "drawer", p: "togglePins" }[event.key]
@@ -92,6 +92,31 @@ export default class extends Controller {
     else if (this.hasPanelTarget && !this.panelTarget.hidden) this.close()
     else if (this.hasDrawerTarget && !this.drawerTarget.hidden) this.drawer()
     else if (this.mode) this.toggle()
+  }
+
+  get fullscreen() { return this.element.classList.contains("is-fullscreen") }
+
+  // The bar is what drives comment mode, the thread and the drawer, so none of
+  // them may outlive it: they would sit over the artifact with no way to answer.
+  enterFullscreen() {
+    if (this.mode) this.toggle()
+    this.close()
+    if (!this.drawerTarget.hidden) this.drawer()
+    this.setFullscreen(true, this.restoreTarget)
+  }
+
+  exitFullscreen() { this.setFullscreen(false, this.closeBarTarget) }
+
+  // In the URL, so a reload keeps it and the address bar is the link to share.
+  // Replaced rather than pushed: Back should leave the artifact, not reopen a bar.
+  // Focus moves because the control that held it has just stopped being displayed.
+  setFullscreen(on, focus) {
+    this.element.classList.toggle("is-fullscreen", on)
+    const url = new URL(window.location.href)
+    if (on) url.searchParams.set("fullscreen", "1")
+    else url.searchParams.delete("fullscreen")
+    window.history.replaceState(window.history.state, "", url)
+    focus.focus()
   }
 
   // <details> has no light dismiss of its own, so a menu left open keeps sitting
@@ -314,6 +339,8 @@ export default class extends Controller {
   // A new spot: a ghost pin marks exactly where the click landed, so the reader
   // can see what the comment they are typing will point at.
   compose({ selector, quote, fx, fy, x, y }) {
+    if (this.fullscreen) return
+
     this.ghost ||= Object.assign(document.createElement("span"), { className: "pin is-new", textContent: "+" })
     // Same nudge as place(), so the saved pin lands where the ghost stood.
     this.ghost.style.left = `${Math.max(0, x - 20)}px`

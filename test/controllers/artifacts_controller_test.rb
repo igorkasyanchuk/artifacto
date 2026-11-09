@@ -88,6 +88,39 @@ class ArtifactsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "<iframe"
   end
 
+  test "?fullscreen=1 opens the artifact with the bar already closed" do
+    get "/a/#{@artifact.slug}?fullscreen=1"
+    assert_select ".viewer.is-fullscreen"
+
+    get "/a/#{@artifact.slug}?fullscreen=0"
+    assert_select ".viewer.is-fullscreen", false
+
+    get "/a/#{@artifact.slug}"
+    assert_select ".viewer.is-fullscreen", false
+  end
+
+  test "full screen still says network is on" do
+    @artifact.update!(allow_network: true)
+
+    get "/a/#{@artifact.slug}?fullscreen=1"
+    assert_select ".restore", text: /network on/
+  end
+
+  test "a locked artifact shows its PIN form in full, then goes full screen once unlocked" do
+    @artifact.update!(pin: "123456")
+
+    get "/a/#{@artifact.slug}?fullscreen=1"
+    assert_select ".viewer.is-fullscreen", false
+    assert_select "[data-wrapper-target=closeBar]", false
+
+    post css_select(".center form").first["action"], params: { pin: "nope" }
+    assert_response :unauthorized
+
+    post css_select(".center form").first["action"], params: { pin: "123456" }
+    follow_redirect!
+    assert_select ".viewer.is-fullscreen"
+  end
+
   test "reporting an artifact files it for review" do
     assert_difference "AbuseReport.count", 1 do
       post "/a/#{@artifact.slug}/report", params: { reason: "phishing" }

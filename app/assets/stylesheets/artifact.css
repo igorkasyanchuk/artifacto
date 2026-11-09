@@ -46,6 +46,20 @@ kbd { display: inline-block; min-width: 1.15rem; margin-left: .45rem; padding: 0
 .bar .actions { display: flex; align-items: center; gap: .4rem; flex: none; }
 .bar button, .bar input[type=submit] { padding: .32rem .65rem; font-size: .75rem; background: var(--bg); }
 
+/* Full screen: the artifact takes the whole window. Pins go too, since the bar is
+   what would hide them or say what they are. The restore button floats over a
+   page we do not control, so like the pins its colours are fixed; the bottom
+   corner, because the top ones are where an artifact keeps its own controls. */
+.viewer.is-fullscreen > .bar, .is-fullscreen .overlay { display: none; }
+.restore { display: none; position: absolute; right: .6rem; bottom: .6rem; z-index: 3;
+           align-items: center; gap: .4rem; padding: .25rem; opacity: .55;
+           background: #0a0c0b; color: #f0b429; border: 1px solid #7ee081; border-radius: 5px;
+           font-size: .68rem; transition: opacity .12s; }
+.is-fullscreen .restore { display: inline-flex; }
+/* :has(span) is the network warning, which is not there to be unobtrusive. */
+.restore:has(span), .restore:hover, .restore:focus-visible { opacity: 1; color: #f0b429; }
+.restore img { display: block; width: 1.2rem; height: 1.2rem; }
+
 /* The comment controls as one segmented group; pressed = on. */
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
 .seg button { border: 0; border-radius: 0; }
@@ -167,7 +181,9 @@ button.icon { padding: .1rem .45rem; font-size: 1rem; line-height: 1; border-col
 @media (max-width: 36rem) {
   .viewer > .bar { flex-wrap: wrap; }
   .bar .bar-title { max-width: 60vw; }
-  .bar .actions { width: 100%; }
+  /* Own row, and after the × so that stays up on the title row: this one has no
+     width left for it. */
+  .bar .actions { width: 100%; order: 1; }
   .bar .seg { flex: 1; }
   .bar .seg button { flex: 1; justify-content: center; }
   .bar button { padding: .32rem .5rem; white-space: nowrap; }

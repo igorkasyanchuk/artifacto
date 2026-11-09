@@ -4,7 +4,11 @@
     the same one the content zone does, so a locked artifact's comments stay locked. %>
 <%# blur@window covers the click that lands in the iframe: those events never
     reach this document, and the artifact is the likeliest place to click next. %>
-<div class="viewer" data-controller="wrapper" data-wrapper-slug-value="<%= @artifact.slug %>"
+<%# Set here as well as by the Stimulus controller, so ?fullscreen=1 never flashes
+    the bar. Not on the PIN page: the bar is all it has around the form, and
+    nothing is framed yet to give the room to. %>
+<div class="viewer <%= "is-fullscreen" if fullscreen && !@needs_pin %>"
+     data-controller="wrapper" data-wrapper-slug-value="<%= @artifact.slug %>"
      data-wrapper-token-value="<%= @unlock_token %>"
      data-action="click@document->wrapper#dismissMenu blur@window->wrapper#dismissMenu
                   keydown@document->wrapper#key">
@@ -62,6 +66,11 @@
         </div>
       </details>
     </div>
+
+    <% unless @needs_pin %>
+      <button type="button" class="icon" aria-label="Close bar" title="Close bar — artifact full screen"
+              data-wrapper-target="closeBar" data-action="wrapper#enterFullscreen">×</button>
+    <% end %>
   </header>
 
   <%# Empty on purpose, and empty is also how it hides: it stays in the page so
@@ -77,7 +86,7 @@
       <p class="code">401 · pin required</p>
       <h1>Locked</h1>
       <p class="note">Whoever published this artifact set a PIN on it.</p>
-      <%= form_with url: unlock_artifact_path(@artifact.slug), method: :post do |form| %>
+      <%= form_with url: unlock_artifact_path(@artifact.slug, fullscreen: fullscreen), method: :post do |form| %>
         <%= form.password_field :pin, placeholder: "PIN", autocomplete: "off", autofocus: true %>
         <p><%= form.submit "Unlock", class: "primary" %></p>
       <% end %>
@@ -138,6 +147,15 @@
         </header>
         <div class="entries" data-wrapper-target="entries"></div>
       </aside>
+
+      <%# The way back from full screen, and with it to Report. It carries the mark
+          and any network warning because the bar that normally does is gone: a
+          ?fullscreen=1 link must not pass an artifact off as a page of its own. %>
+      <button type="button" class="restore" aria-label="Show artifacto bar" title="Show artifacto bar"
+              data-wrapper-target="restore" data-action="wrapper#exitFullscreen">
+        <%= image_tag "/icon.svg", alt: "" %>
+        <% if @artifact.allow_network? %><span>network on</span><% end %>
+      </button>
     </div>
   <% end %>
 </div>

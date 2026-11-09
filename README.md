@@ -256,6 +256,10 @@ them — including the ones whose anchor no longer resolves — and deletes any 
 them against the artifact's edit token, which the panel asks for once and keeps
 in `localStorage`. No account — whoever holds the link can comment.
 
+**×** at the end of the bar closes it and hides the pins, giving the artifact the
+whole window; a small button in the bottom corner brings both back. The URL gains
+`?fullscreen=1`, and a link carrying that opens the artifact that way.
+
 The name box beside the comment body is optional and unverified: it is stored as
 `comments.author`, returned by the API, and remembered in `localStorage` so the
 same reader does not retype it on the next artifact. Nothing checks it, so it
